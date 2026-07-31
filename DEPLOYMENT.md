@@ -45,7 +45,31 @@ Add these secrets to GitHub Actions. Go to Settings → Secrets and variables �
 - Value: Your Gmail address (e.g., `tombarreras@gmail.com`)
 - Purpose: Sender address on emails
 
-## Phase 3: Validate Source Identifiers (2-4 hours)
+## Phase 3: Auto-Discover Source Identifiers (10 minutes)
+
+**NEW**: Use automated discovery instead of manual validation!
+
+```bash
+# This will automatically discover all 70+ companies in ~5-10 minutes
+python -m job_collector discover-sources --config config
+```
+
+The tool will:
+- Visit each company's careers page
+- Auto-detect the ATS type (Greenhouse, Lever, Ashby, JSON-LD)
+- Extract source identifiers automatically
+- Test that each source works
+- Generate `companies_discovered.yaml` with results
+
+**Result**: ~40-50 sources automatically validated and ready to use.
+
+See `AUTO_DISCOVERY.md` for details.
+
+---
+
+## Phase 3 (Alternative): Manual Validation (2-4 hours)
+
+If you prefer to validate manually, follow the procedure below. Otherwise, skip to Phase 4.
 
 ### 1. Start with Priority Sources
 
@@ -102,7 +126,26 @@ Keep a list of successful sources:
 - City of Austin: Workday system - pending parser
 ```
 
-## Phase 4: Local Testing (30 minutes)
+## Phase 4: Use Discovered Configuration
+
+If you used auto-discovery:
+
+```bash
+# Backup original (optional)
+cp config/companies.yaml config/companies.backup.yaml
+
+# Use discovered config
+mv config/companies_discovered.yaml config/companies.yaml
+
+# Verify it looks good
+head config/companies.yaml
+```
+
+Then proceed to testing below.
+
+---
+
+## Phase 5: Local Testing (30 minutes)
 
 ### 1. Simulate GitHub Actions Environment
 
@@ -138,7 +181,7 @@ Verify:
 - ✓ Job titles, URLs, and descriptions look reasonable
 - ✓ At least 10 jobs from your validated sources
 
-## Phase 5: Deploy to GitHub (5 minutes)
+## Phase 6: Deploy to GitHub (5 minutes)
 
 ### 1. Push to GitHub
 
@@ -170,7 +213,7 @@ Check `tombarreras@gmail.com` for:
 - ✓ Summary of new/changed/expired jobs
 - ✓ JSON attachment with full job data
 
-## Phase 6: Persistence Branch Setup (5 minutes)
+## Phase 7: Persistence Branch Setup (5 minutes)
 
 After the first successful workflow run:
 
@@ -184,7 +227,7 @@ After the first successful workflow run:
    - You should see `data/jobs.db` file
    - This persists across workflow runs
 
-## Phase 7: Expand Source Coverage (1-2 hours)
+## Phase 8: Expand Source Coverage (1-2 hours)
 
 ### 1. Validate Next Batch
 
@@ -208,7 +251,7 @@ git push origin main
 
 Trigger workflow manually again to test new sources.
 
-## Phase 8: Schedule Daily Automation (Already Configured)
+## Phase 9: Schedule Daily Automation (Already Configured)
 
 The workflow is already scheduled to run daily at **7:00 AM UTC**:
 
@@ -308,4 +351,4 @@ Refer to:
 
 **Last Updated**: 2026-07-30
 
-**Estimated Time to Full Deployment**: 4-6 hours
+**Estimated Time to Full Deployment**: 1-2 hours (with auto-discovery) or 4-6 hours (manual validation)
