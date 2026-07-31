@@ -1,0 +1,44 @@
+{
+  "jobs": [
+    {
+      "id": 123456,
+      "title": "Senior Software Engineer",
+      "company": {
+        "name": "Example Company"
+      },
+      "published_at": "2026-07-20T10:00:00Z",
+      "offices": [
+        {
+          "name": "San Francisco, CA"
+        }
+      ],
+      "departments": [
+        {
+          "name": "Engineering"
+        }
+      ],
+      "content": "<p>We are looking for a <strong>Senior Software Engineer</strong> to join our team.</p><p>Requirements:</p><ul><li>5+ years experience</li><li>Python expertise</li></ul>",
+      "absolute_url": "https://boards.greenhouse.io/example/jobs/123456"
+    },
+    {
+      "id": 123457,
+      "title": "QA Engineer - Remote",
+      "company": {
+        "name": "Example Company"
+      },
+      "published_at": "2026-07-25T14:30:00Z",
+      "offices": [
+        {
+          "name": "Remote"
+        }
+      ],
+      "departments": [
+        {
+          "name": "QA"
+        }
+      ],
+      "content": "<p>Join our QA team as a QA Engineer.</p><p>About the role:</p><ul><li>Test automation</li><li>Manual testing</li><li>Python and JavaScript</li></ul>",
+      "absolute_url": "https://boards.greenhouse.io/example/jobs/123457"
+    }
+  ]
+}

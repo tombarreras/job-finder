@@ -72,20 +72,128 @@ def init_db(args: argparse.Namespace) -> int:
 
 def collect(args: argparse.Namespace) -> int:
     """Collect jobs from configured sources."""
-    print("Collect command not yet implemented")
-    return 0
+    import asyncio
+    from pathlib import Path
+
+    from job_collector.collection import JobCollectionOrchestrator
+    from job_collector.config import JobCollectorConfig
+    from job_collector.database import JobDatabase
+
+    config_dir = Path(args.config_dir or "config")
+    db_path = Path(args.database or "data/jobs.db")
+
+    try:
+        config = JobCollectorConfig.from_yaml(config_dir)
+        errors = config.validate()
+        if errors:
+            print("Configuration errors:")
+            for error in errors:
+                print(f"  - {error}")
+            return 1
+
+        db = JobDatabase(db_path)
+        orchestrator = JobCollectionOrchestrator(config, db)
+
+        # Run collection
+        result = asyncio.run(orchestrator.collect_all(
+            source_filter=args.source if hasattr(args, 'source') and args.source else None,
+            company_filter=args.company if hasattr(args, 'company') and args.company else None,
+        ))
+
+        # Log results
+        print(f"Collection complete: {result['stats']['new_count']} new, "
+              f"{result['stats']['changed_count']} changed, "
+              f"{result['stats']['expired_count']} expired")
+        print(f"Sources: {result['stats']['successful_sources']} successful, "
+              f"{result['stats']['failed_sources']} failed")
+        print(f"Duration: {result['duration']:.2f}s")
+
+        return 0
+
+    except Exception as e:
+        logger.exception("Collection failed")
+        print(f"Error: {e}")
+        return 1
 
 
 def report(args: argparse.Namespace) -> int:
     """Generate reports."""
-    print("Report command not yet implemented")
-    return 0
+    from pathlib import Path
+
+    from job_collector.config import JobCollectorConfig
+    from job_collector.database import JobDatabase
+    from job_collector.reporting import ReportGenerator
+
+    config_dir = Path(args.config_dir or "config")
+    db_path = Path(args.database or "data/jobs.db")
+    output_dir = Path(args.output_directory or "output")
+
+    try:
+        config = JobCollectorConfig.from_yaml(config_dir)
+        db = JobDatabase(db_path)
+
+        # TODO: Query jobs from database
+        jobs = []
+        source_errors = []
+
+        generator = ReportGenerator(output_dir)
+        json_path, md_path = generator.generate_reports(
+            jobs,
+            {"source_count": 0, "successful_sources": 0, "failed_sources": 0},
+            source_errors,
+        )
+
+        print(f"Reports generated:")
+        print(f"  JSON: {json_path}")
+        print(f"  Markdown: {md_path}")
+        return 0
+
+    except Exception as e:
+        logger.exception("Report generation failed")
+        print(f"Error: {e}")
+        return 1
 
 
 def send_email(args: argparse.Namespace) -> int:
     """Send email report."""
-    print("Send email command not yet implemented")
-    return 0
+    from pathlib import Path
+
+    from job_collector.email_delivery import EmailDelivery
+
+    output_dir = Path(args.output_directory or "output")
+
+    try:
+        json_report = output_dir / "latest_jobs.json"
+        md_report = output_dir / "latest_report.md"
+
+        if not json_report.exists():
+            print("No report found. Run 'report' command first.")
+            return 1
+
+        # Read report content
+        with open(md_report) as f:
+            report_content = f.read()
+
+        # Send email
+        email = EmailDelivery()
+        success = email.send_report(
+            to_address="tombarreras@gmail.com",
+            subject="Christopher Job Collector Report",
+            body=EmailDelivery.format_report_email(0, 0, 0, 0, report_content),
+            json_report_path=json_report,
+        )
+
+        if success:
+            print("Email sent successfully")
+            return 0
+        else:
+            print("Failed to send email")
+            return 1
+
+    except Exception as e:
+        logger.exception("Email delivery failed")
+        print(f"Error: {e}")
+        return 1
 
 
 def main() -> int:

@@ -1,0 +1,60 @@
+{
+  "results": [
+    {
+      "id": "xy789",
+      "title": "Data Engineer",
+      "description": "<p>We are looking for a Data Engineer to build and maintain our data infrastructure.</p><p>Requirements:</p><ul><li>Python or Java</li><li>SQL and databases</li><li>Big data experience (Spark, Hadoop)</li></ul>",
+      "descriptionPlain": "We are looking for a Data Engineer to build and maintain our data infrastructure.\n\nRequirements:\n- Python or Java\n- SQL and databases\n- Big data experience (Spark, Hadoop)",
+      "url": "https://jobs.ashby.co/example/data-engineer-xy789",
+      "applyUrl": "https://jobs.ashby.co/example/data-engineer-xy789/apply",
+      "createdAt": "2026-07-22T08:00:00Z",
+      "location": {
+        "city": "San Francisco",
+        "state": "CA",
+        "country": "USA"
+      },
+      "department": {
+        "name": "Engineering"
+      },
+      "team": {
+        "name": "Data"
+      },
+      "employmentType": "Full-time",
+      "isRemote": false,
+      "isHybrid": true,
+      "workplaceType": "Hybrid",
+      "compensation": {
+        "min": 120000,
+        "max": 160000,
+        "currency": "USD",
+        "period": "year"
+      }
+    },
+    {
+      "id": "uv456",
+      "title": "Sales Engineer (Remote)",
+      "description": "<p>Fully remote Sales Engineer role.</p><p>About the position:</p><ul><li>Enterprise sales support</li><li>Technical demonstrations</li><li>Customer enablement</li></ul>",
+      "descriptionPlain": "Fully remote Sales Engineer role.\n\nAbout the position:\n- Enterprise sales support\n- Technical demonstrations\n- Customer enablement",
+      "url": "https://jobs.ashby.co/example/sales-engineer-remote-uv456",
+      "applyUrl": "https://jobs.ashby.co/example/sales-engineer-remote-uv456/apply",
+      "createdAt": "2026-07-25T14:00:00Z",
+      "location": {
+        "city": "Remote",
+        "country": "USA"
+      },
+      "department": {
+        "name": "Sales"
+      },
+      "employmentType": "Full-time",
+      "isRemote": true,
+      "isHybrid": false,
+      "workplaceType": "Remote",
+      "compensation": {
+        "min": 100000,
+        "max": 130000,
+        "currency": "USD",
+        "period": "year"
+      }
+    }
+  ]
+}
