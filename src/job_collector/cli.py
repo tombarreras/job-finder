@@ -196,6 +196,23 @@ def send_email(args: argparse.Namespace) -> int:
         return 1
 
 
+def discover_sources(args: argparse.Namespace) -> int:
+    """Auto-discover and validate all company sources."""
+    import asyncio
+    from pathlib import Path
+
+    from job_collector.discovery_cli import auto_discover_sources
+
+    config_dir = Path(args.config_dir or "config")
+
+    try:
+        return asyncio.run(auto_discover_sources(config_dir))
+    except Exception as e:
+        logger.exception("Source discovery failed")
+        print(f"Error: {e}")
+        return 1
+
+
 def main() -> int:
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -250,6 +267,12 @@ def main() -> int:
     # send-email command
     subparsers.add_parser("send-email", help="Send email report")
 
+    # discover-sources command
+    subparsers.add_parser(
+        "discover-sources",
+        help="Auto-discover and validate all company sources (takes 5-10 minutes)"
+    )
+
     args = parser.parse_args()
     setup_logging(args.log_level)
 
@@ -264,6 +287,8 @@ def main() -> int:
         return report(args)
     elif args.command == "send-email":
         return send_email(args)
+    elif args.command == "discover-sources":
+        return discover_sources(args)
     else:
         parser.print_help()
         return 1
