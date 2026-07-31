@@ -85,10 +85,10 @@ companies:
       - qa
     locations:
       - Austin, TX
-    career_page_url: https://www.q2.com/company/careers
+    career_page_url: https://www.q2.com/company/why-work-at-q2/careers
     sources:
       - type: jsonld
-        site_url: https://www.q2.com/company/careers
+        site_url: https://www.q2.com/company/why-work-at-q2/careers
         timeout_seconds: 30
     notes: "Austin-based fintech - discover underlying ATS"
 
