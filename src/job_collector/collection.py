@@ -161,15 +161,54 @@ class JobCollectionOrchestrator:
 
     def _detect_status_changes(self, new_jobs: list[NormalizedJob]) -> list[NormalizedJob]:
         """Detect job status changes from previous collection."""
+        from job_collector.state import StateManager
+
+        state_manager = StateManager(self.database)
         processed = []
 
-        for job in new_jobs:
-            # Default to NEW
-            job.status = JobStatus.NEW
+        # Group jobs by source for expiration detection
+        jobs_by_source: dict[str, list[NormalizedJob]] = {}
+        source_job_ids: dict[str, set[str]] = {}
 
-            # Check for exact duplicates by source_id
-            # TODO: Query database for previous state and compare content
+        for job in new_jobs:
+            source_id = f"{job.source_company_id}#{job.source_type}"
+
+            if source_id not in jobs_by_source:
+                jobs_by_source[source_id] = []
+                source_job_ids[source_id] = set()
+
+            jobs_by_source[source_id].append(job)
+            source_job_ids[source_id].add(job.source_job_id)
+
+        # Detect status for each job
+        for job in new_jobs:
+            source_id = f"{job.source_company_id}#{job.source_type}"
+
+            # Detect status changes
+            job, status_reason = state_manager.detect_status(job, source_id)
+
+            # Record observation
+            state_manager.record_observation(job, source_id)
 
             processed.append(job)
+
+        # Detect expired jobs
+        for source_id, active_ids in source_job_ids.items():
+            expired_ids = state_manager.detect_expired_jobs(source_id, active_ids)
+
+            # Add expired jobs to results
+            for expired_id in expired_ids:
+                expired_job = NormalizedJob(
+                    source_type=new_jobs[0].source_type if new_jobs else "unknown",
+                    source_company_id=new_jobs[0].source_company_id if new_jobs else "unknown",
+                    source_job_id=expired_id,
+                    company_name="",
+                    title="",
+                    location="",
+                    apply_url="",
+                    source_url="",
+                    status=JobStatus.EXPIRED,
+                )
+                processed.append(expired_job)
 
         return processed
