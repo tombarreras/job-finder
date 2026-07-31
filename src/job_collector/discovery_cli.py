@@ -44,10 +44,10 @@ async def auto_discover_sources(
     print("\n" + "=" * 60)
     print("DISCOVERY RESULTS")
     print("=" * 60)
-    print(f"✓ Successfully discovered and tested: {len(success)}")
-    print(f"✗ Could not access: {len(failed)}")
-    print(f"? Could not detect source type: {len(detection_failed)}")
-    print(f"- No careers URL: {len(no_url)}")
+    print(f"[OK] Successfully discovered and tested: {len(success)}")
+    print(f"[FAIL] Could not access: {len(failed)}")
+    print(f"[UNKNOWN] Could not detect source type: {len(detection_failed)}")
+    print(f"[SKIP] No careers URL: {len(no_url)}")
     print(f"\nTotal: {len(results)}")
 
     print("\n" + "=" * 60)
@@ -60,14 +60,14 @@ async def auto_discover_sources(
             identifier = source.get("site_url", "")[:50]
         else:
             identifier = source.get(f"{source_type}") or source.get("site_url", "")[:50]
-        print(f"  ✓ {company['name']}: {source_type} ({identifier})")
+        print(f"  [OK] {company['name']}: {source_type} ({identifier})")
 
     if failed:
         print("\n" + "=" * 60)
         print("UNABLE TO ACCESS (Requires manual investigation)")
         print("=" * 60)
         for company in failed:
-            print(f"  ✗ {company['name']}")
+            print(f"  [FAIL] {company['name']}")
 
     if detection_failed:
         print("\n" + "=" * 60)

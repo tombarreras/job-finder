@@ -30,27 +30,42 @@ class SourceDiscovery:
     async def discover(self, careers_url: str) -> Optional[DiscoveredSource]:
         """Discover source type and identifier from careers URL."""
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.get(careers_url, follow_redirects=True)
+            async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
+                response = await client.get(careers_url)
                 response.raise_for_status()
                 html = response.text
+                final_url = str(response.url)  # Get final URL after redirects
 
                 # Try each detection method in order of specificity
-                result = self._detect_greenhouse(careers_url, html)
+                result = self._detect_greenhouse(careers_url, final_url, html)
                 if result:
                     return result
 
-                result = self._detect_lever(careers_url, html)
+                result = self._detect_lever(careers_url, final_url, html)
                 if result:
                     return result
 
-                result = self._detect_ashby(careers_url, html)
+                result = self._detect_ashby(careers_url, final_url, html)
                 if result:
                     return result
 
+                result = self._detect_workday(final_url)
+                if result:
+                    return result
+
+                # Fallback: if page loads, assume JSON-LD or fallback
                 result = self._detect_jsonld(careers_url, html)
                 if result:
                     return result
+
+                # As last resort, if page is accessible, treat as JSON-LD fallback
+                if response.status_code == 200:
+                    return DiscoveredSource(
+                        source_type="jsonld",
+                        identifier=careers_url,
+                        confidence=0.3,
+                        evidence=["Page is accessible but no recognized ATS detected - fallback to JSON-LD"],
+                    )
 
                 return None
 
@@ -59,11 +74,35 @@ class SourceDiscovery:
             return None
 
     @staticmethod
-    def _detect_greenhouse(careers_url: str, html: str) -> Optional[DiscoveredSource]:
+    def _detect_workday(final_url: str) -> Optional[DiscoveredSource]:
+        """Detect Workday."""
+        if "myworkdayjobs.com" in final_url:
+            return DiscoveredSource(
+                source_type="jsonld",
+                identifier=final_url,
+                confidence=0.5,
+                evidence=["URL contains myworkdayjobs.com (Workday system)"],
+            )
+        return None
+
+    @staticmethod
+    def _detect_greenhouse(careers_url: str, final_url: str, html: str) -> Optional[DiscoveredSource]:
         """Detect Greenhouse."""
         evidence = []
 
-        # Check URL pattern
+        # Check final URL pattern (after redirects)
+        if "boards.greenhouse.io" in final_url:
+            match = re.search(r"boards\.greenhouse\.io/([^/]+)", final_url)
+            if match:
+                board_token = match.group(1)
+                return DiscoveredSource(
+                    source_type="greenhouse",
+                    identifier=board_token,
+                    confidence=0.95,
+                    evidence=["Final URL matches boards.greenhouse.io pattern"],
+                )
+
+        # Check original URL pattern
         if "boards.greenhouse.io" in careers_url:
             match = re.search(r"boards\.greenhouse\.io/([^/]+)", careers_url)
             if match:
@@ -104,11 +143,23 @@ class SourceDiscovery:
         return None
 
     @staticmethod
-    def _detect_lever(careers_url: str, html: str) -> Optional[DiscoveredSource]:
+    def _detect_lever(careers_url: str, final_url: str, html: str) -> Optional[DiscoveredSource]:
         """Detect Lever."""
         evidence = []
 
-        # Check URL pattern
+        # Check final URL pattern
+        if "jobs.lever.co" in final_url:
+            match = re.search(r"jobs\.lever\.co/([^/]+)", final_url)
+            if match:
+                board_name = match.group(1)
+                return DiscoveredSource(
+                    source_type="lever",
+                    identifier=board_name,
+                    confidence=0.95,
+                    evidence=["Final URL matches jobs.lever.co pattern"],
+                )
+
+        # Check original URL pattern
         if "jobs.lever.co" in careers_url:
             match = re.search(r"jobs\.lever\.co/([^/]+)", careers_url)
             if match:
@@ -138,11 +189,24 @@ class SourceDiscovery:
         return None
 
     @staticmethod
-    def _detect_ashby(careers_url: str, html: str) -> Optional[DiscoveredSource]:
+    def _detect_ashby(careers_url: str, final_url: str, html: str) -> Optional[DiscoveredSource]:
         """Detect Ashby."""
         evidence = []
 
-        # Check URL pattern
+        # Check final URL pattern
+        if "ashby" in final_url.lower():
+            if "jobs.ashby.co" in final_url or "careers.ashby.co" in final_url:
+                match = re.search(r"ashby\.co/([^/]+)", final_url)
+                if match:
+                    board_name = match.group(1)
+                    return DiscoveredSource(
+                        source_type="ashby",
+                        identifier=board_name,
+                        confidence=0.95,
+                        evidence=["Final URL matches ashby.co pattern"],
+                    )
+
+        # Check original URL pattern
         if "ashby" in careers_url.lower():
             if "jobs.ashby.co" in careers_url or "careers.ashby.co" in careers_url:
                 match = re.search(r"ashby\.co/([^/]+)", careers_url)
