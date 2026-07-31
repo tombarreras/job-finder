@@ -1,0 +1,47 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "job-collector"
+version = "0.1.0"
+description = "Automated job collection system for tracking employment opportunities"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+authors = [{name = "Christopher Barreras", email = "tombarreras@gmail.com"}]
+
+dependencies = [
+    "httpx>=0.24.0",
+    "pydantic>=2.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0",
+    "types-pyyaml>=6.0",
+    "types-requests>=2.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "A", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_calls = false

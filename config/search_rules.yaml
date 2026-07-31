@@ -1,0 +1,68 @@
+software_and_qa:
+  nationwide: true
+  include_titles:
+    - junior software developer
+    - entry level software engineer
+    - software developer
+    - qa analyst
+    - qa engineer
+    - software tester
+    - test engineer
+    - automation engineer
+  exclude_titles:
+    - senior
+    - staff
+    - principal
+    - manager
+    - director
+    - architect
+
+austin_technical:
+  nationwide: false
+  locations:
+    - Austin, TX
+    - Round Rock, TX
+    - Pflugerville, TX
+    - Cedar Park, TX
+    - Leander, TX
+    - Georgetown, TX
+    - Taylor, TX
+    - Hutto, TX
+    - Buda, TX
+    - Kyle, TX
+    - Bastrop, TX
+    - San Marcos, TX
+    - Wimberley, TX
+  include_titles:
+    - it support
+    - help desk
+    - desktop support
+    - application support
+    - technical support
+    - manufacturing technician
+    - production technician
+    - field service technician
+
+trades:
+  nationwide: false
+  locations:
+    - Austin, TX
+    - Round Rock, TX
+    - Pflugerville, TX
+    - Cedar Park, TX
+    - Leander, TX
+    - Georgetown, TX
+    - Taylor, TX
+    - Hutto, TX
+    - Buda, TX
+    - Kyle, TX
+    - Bastrop, TX
+    - San Marcos, TX
+    - Wimberley, TX
+  include_titles:
+    - electrical apprentice
+    - apprentice electrician
+    - electrician helper
+    - hvac apprentice
+    - hvac helper
+    - construction helper

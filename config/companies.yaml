@@ -1,0 +1,59 @@
+database_path: data/jobs.db
+output_directory: output
+log_level: INFO
+
+companies:
+  # Software and technology (nationwide)
+  - id: example-greenhouse
+    name: Example Company (Greenhouse)
+    enabled: false
+    priority: high
+    categories:
+      - software
+      - qa
+    locations:
+      - Remote
+    sources:
+      - type: greenhouse
+        board_token: examplecompany
+    notes: "Placeholder for testing Greenhouse integration"
+
+  - id: example-lever
+    name: Example Company (Lever)
+    enabled: false
+    priority: high
+    categories:
+      - software
+    locations:
+      - Remote
+    sources:
+      - type: lever
+        board_name: examplecompany
+    notes: "Placeholder for testing Lever integration"
+
+  - id: example-ashby
+    name: Example Company (Ashby)
+    enabled: false
+    priority: high
+    categories:
+      - software
+      - qa
+    locations:
+      - Remote
+    sources:
+      - type: ashby
+        board_name: examplecompany
+    notes: "Placeholder for testing Ashby integration"
+
+  - id: example-jsonld
+    name: Example Company (JSON-LD)
+    enabled: false
+    priority: medium
+    categories:
+      - software
+    locations:
+      - Remote
+    sources:
+      - type: jsonld
+        site_url: https://example.com/careers
+    notes: "Placeholder for testing JSON-LD integration"

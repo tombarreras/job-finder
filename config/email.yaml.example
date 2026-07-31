@@ -1,0 +1,10 @@
+# Email configuration example
+# Do not commit actual credentials to the repository
+# Use GitHub Actions secrets instead
+
+smtp_host: smtp.gmail.com
+smtp_port: 587
+smtp_username: ${JOB_EMAIL_SMTP_USERNAME}  # Set via environment variable or GitHub secret
+smtp_password: ${JOB_EMAIL_SMTP_PASSWORD}  # Set via environment variable or GitHub secret
+from_address: ${JOB_EMAIL_FROM}            # Set via environment variable or GitHub secret
+to_address: tombarreras@gmail.com
