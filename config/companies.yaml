@@ -2,6 +2,11 @@ database_path: data/jobs.db
 output_directory: output
 log_level: INFO
 
+# Companies registry - Add verified source identifiers when available
+# See: https://www.greenhouse.io/boards - append company name to URL to find board token
+# See: https://jobs.lever.co - click on company name to find URL slug
+# See: https://ashby.com - company careers page has organization name
+
 companies:
   # Software and technology (nationwide)
   - id: example-greenhouse
