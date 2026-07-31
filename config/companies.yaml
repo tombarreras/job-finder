@@ -2,31 +2,387 @@ database_path: data/jobs.db
 output_directory: output
 log_level: INFO
 
-# Companies registry - Add verified source identifiers when available
-# See: https://www.greenhouse.io/boards - append company name to URL to find board token
-# See: https://jobs.lever.co - click on company name to find URL slug
-# See: https://ashby.com - company careers page has organization name
+# Job Source Registry
+# See: job_source_registry_instructions.md for complete list and validation procedure
+#
+# Before enabling any source:
+# 1. Verify the careers URL is accessible
+# 2. Identify the underlying ATS (Greenhouse, Lever, Ashby, JSON-LD, etc.)
+# 3. Test that the collector can retrieve and parse actual job postings
+# 4. Confirm duplicate detection works
+# 5. Only then set enabled: true
+#
+# To find source identifiers:
+# - Greenhouse: https://boards.greenhouse.io/ - look for company board URL
+# - Lever: https://jobs.lever.co/ - check company URL slug
+# - Ashby: Check company careers page for organization name
+# - JSON-LD: Look for <script type="application/ld+json"> blocks on careers page
 
 companies:
-  # Software and technology (nationwide)
-  - id: example-greenhouse
-    name: Example Company (Greenhouse)
+  # Priority 1: Austin Technology and Software (nationwide scope)
+
+  - id: apple
+    name: Apple
+    enabled: false
+    priority: high
+    categories:
+      - software
+      - qa
+      - it-support
+    locations:
+      - Austin, TX
+      - Remote
+    career_page_url: https://jobs.apple.com/en-us/search?location=austin-AST
+    sources:
+      - type: jsonld
+        site_url: https://jobs.apple.com/en-us/search?location=austin-AST
+        timeout_seconds: 30
+    notes: "Custom search page - may need JSON-LD parsing or fallback to direct page check"
+
+  - id: dell-technologies
+    name: Dell Technologies
+    enabled: false
+    priority: high
+    categories:
+      - software
+      - qa
+      - manufacturing
+    locations:
+      - Austin, TX
+      - Round Rock, TX
+      - Remote
+    career_page_url: https://jobs.dell.com/
+    sources:
+      - type: jsonld
+        site_url: https://jobs.dell.com/
+        timeout_seconds: 30
+    notes: "Enterprise ATS - likely Greenhouse or similar"
+
+  - id: ibm
+    name: IBM
+    enabled: false
+    priority: high
+    categories:
+      - software
+      - qa
+      - it-support
+    locations:
+      - Austin, TX
+      - Remote
+    career_page_url: https://www.ibm.com/careers/search
+    sources:
+      - type: jsonld
+        site_url: https://www.ibm.com/careers/search
+        timeout_seconds: 30
+    notes: "Large enterprise ATS system"
+
+  - id: q2-holdings
+    name: Q2 Holdings
     enabled: false
     priority: high
     categories:
       - software
       - qa
     locations:
+      - Austin, TX
+    career_page_url: https://www.q2.com/company/careers
+    sources:
+      - type: jsonld
+        site_url: https://www.q2.com/company/careers
+        timeout_seconds: 30
+    notes: "Austin-based fintech - discover underlying ATS"
+
+  - id: sailpoint
+    name: SailPoint
+    enabled: false
+    priority: high
+    categories:
+      - software
+      - qa
+    locations:
+      - Austin, TX
+    career_page_url: https://www.sailpoint.com/company/careers
+    sources:
+      - type: jsonld
+        site_url: https://www.sailpoint.com/company/careers
+        timeout_seconds: 30
+    notes: "Austin-based identity company - discover underlying ATS"
+
+  - id: silicon-labs
+    name: Silicon Labs
+    enabled: false
+    priority: high
+    categories:
+      - software
+      - qa
+      - manufacturing
+    locations:
+      - Austin, TX
+    career_page_url: https://www.silabs.com/about-us/careers
+    sources:
+      - type: jsonld
+        site_url: https://www.silabs.com/about-us/careers
+        timeout_seconds: 30
+    notes: "Austin-based semiconductor company"
+
+  - id: cirrus-logic
+    name: Cirrus Logic
+    enabled: false
+    priority: high
+    categories:
+      - software
+      - qa
+      - manufacturing
+    locations:
+      - Austin, TX
+    career_page_url: https://www.cirrus.com/company/careers/
+    sources:
+      - type: jsonld
+        site_url: https://www.cirrus.com/company/careers/
+        timeout_seconds: 30
+    notes: "Austin-based semiconductor company"
+
+  # Priority 2: Semiconductor and Advanced Manufacturing
+
+  - id: samsung-austin-semiconductor
+    name: Samsung Austin Semiconductor
+    enabled: false
+    priority: high
+    categories:
+      - manufacturing
+      - qa
+    locations:
+      - Austin, TX
+    career_page_url: https://semiconductor.samsung.com/sas/work-with-us/job-opportunities/
+    sources:
+      - type: jsonld
+        site_url: https://semiconductor.samsung.com/sas/work-with-us/job-opportunities/
+        timeout_seconds: 30
+    notes: "Large Austin-based semiconductor fab"
+
+  - id: tesla-austin
+    name: Tesla (Austin)
+    enabled: false
+    priority: high
+    categories:
+      - manufacturing
+      - qa
+    locations:
+      - Austin, TX
+    career_page_url: https://www.tesla.com/careers/search/?country=US&query=Austin
+    sources:
+      - type: jsonld
+        site_url: https://www.tesla.com/careers/search/?country=US&query=Austin
+        timeout_seconds: 30
+    notes: "Austin Gigafactory - custom API or page parsing"
+
+  - id: applied-materials
+    name: Applied Materials
+    enabled: false
+    priority: high
+    categories:
+      - manufacturing
+      - qa
+    locations:
+      - Remote
+    career_page_url: https://www.appliedmaterials.com/us/en/careers.html
+    sources:
+      - type: jsonld
+        site_url: https://www.appliedmaterials.com/us/en/careers.html
+        timeout_seconds: 30
+    notes: "Semiconductor equipment manufacturer"
+
+  - id: nxp-semiconductors
+    name: NXP Semiconductors
+    enabled: false
+    priority: high
+    categories:
+      - software
+      - manufacturing
+    locations:
+      - Remote
+    career_page_url: https://www.nxp.com/company/about-nxp/careers:CAREERS
+    sources:
+      - type: jsonld
+        site_url: https://www.nxp.com/company/about-nxp/careers:CAREERS
+        timeout_seconds: 30
+    notes: "Semiconductor company with enterprise ATS"
+
+  - id: amd
+    name: AMD
+    enabled: false
+    priority: high
+    categories:
+      - software
+      - manufacturing
+    locations:
+      - Remote
+    career_page_url: https://careers.amd.com/careers-home
+    sources:
+      - type: jsonld
+        site_url: https://careers.amd.com/careers-home
+        timeout_seconds: 30
+    notes: "Semiconductor company"
+
+  - id: flex
+    name: Flex
+    enabled: false
+    priority: medium
+    categories:
+      - manufacturing
+      - qa
+    locations:
+      - Remote
+    career_page_url: https://flex.com/careers/united-states
+    sources:
+      - type: jsonld
+        site_url: https://flex.com/careers/united-states
+        timeout_seconds: 30
+    notes: "Electronics manufacturing services"
+
+  # Priority 3: Government, Education, and Utilities
+
+  - id: city-of-austin
+    name: City of Austin
+    enabled: false
+    priority: high
+    categories:
+      - it-support
+      - application-support
+      - administrative
+    locations:
+      - Austin, TX
+    career_page_url: https://www.austincityjobs.org/
+    sources:
+      - type: jsonld
+        site_url: https://www.austincityjobs.org/
+        timeout_seconds: 30
+    notes: "Municipal government jobs"
+
+  - id: state-of-texas
+    name: State of Texas
+    enabled: false
+    priority: high
+    categories:
+      - it-support
+      - application-support
+      - administrative
+    locations:
+      - Austin, TX
+      - Texas
+    career_page_url: https://capps.taleo.net/careersection/ex/jobsearch.ftl
+    sources:
+      - type: jsonld
+        site_url: https://capps.taleo.net/careersection/ex/jobsearch.ftl
+        timeout_seconds: 30
+    notes: "State government - uses Taleo ATS"
+
+  - id: university-of-texas-austin
+    name: University of Texas at Austin
+    enabled: false
+    priority: high
+    categories:
+      - it-support
+      - administrative
+      - technical-support
+    locations:
+      - Austin, TX
+    career_page_url: https://utaustin.wd1.myworkdayjobs.com/UTstaff
+    sources:
+      - type: jsonld
+        site_url: https://utaustin.wd1.myworkdayjobs.com/UTstaff
+        timeout_seconds: 30
+    notes: "Uses Workday ATS - may need custom parsing"
+
+  - id: austin-community-college
+    name: Austin Community College
+    enabled: false
+    priority: medium
+    categories:
+      - it-support
+      - administrative
+    locations:
+      - Austin, TX
+    career_page_url: https://austincc.wd1.myworkdayjobs.com/External
+    sources:
+      - type: jsonld
+        site_url: https://austincc.wd1.myworkdayjobs.com/External
+        timeout_seconds: 30
+    notes: "Uses Workday ATS"
+
+  - id: lower-colorado-river-authority
+    name: Lower Colorado River Authority
+    enabled: false
+    priority: medium
+    categories:
+      - it-support
+      - technical-operations
+    locations:
+      - Austin, TX
+      - Central Texas
+    career_page_url: https://jobs.lcra.org/
+    sources:
+      - type: jsonld
+        site_url: https://jobs.lcra.org/
+        timeout_seconds: 30
+    notes: "Utility authority jobs"
+
+  - id: ercot
+    name: ERCOT
+    enabled: false
+    priority: medium
+    categories:
+      - it-support
+      - technical-operations
+      - software
+    locations:
+      - Austin, TX
+    career_page_url: https://careers.ercot.com/
+    sources:
+      - type: jsonld
+        site_url: https://careers.ercot.com/
+        timeout_seconds: 30
+    notes: "Texas electric grid operator"
+
+  # Priority 5: Electrical, HVAC, and Construction
+
+  - id: tdindustries
+    name: TDIndustries
+    enabled: false
+    priority: medium
+    categories:
+      - electrical-trade
+      - hvac-trade
+      - construction
+    locations:
+      - Austin, TX
+      - Central Texas
+    career_page_url: https://careers.tdindustries.com/
+    sources:
+      - type: jsonld
+        site_url: https://careers.tdindustries.com/
+        timeout_seconds: 30
+    notes: "Major HVAC/electrical contractor in Austin"
+
+  # Additional validation examples
+
+  - id: example-greenhouse
+    name: Example Company (Greenhouse - Template)
+    enabled: false
+    priority: low
+    categories:
+      - software
+    locations:
       - Remote
     sources:
       - type: greenhouse
         board_token: examplecompany
-    notes: "Placeholder for testing Greenhouse integration"
+    notes: "Template for Greenhouse-based companies - replace with real board token"
 
   - id: example-lever
-    name: Example Company (Lever)
+    name: Example Company (Lever - Template)
     enabled: false
-    priority: high
+    priority: low
     categories:
       - software
     locations:
@@ -34,31 +390,17 @@ companies:
     sources:
       - type: lever
         board_name: examplecompany
-    notes: "Placeholder for testing Lever integration"
+    notes: "Template for Lever-based companies - replace with real board name"
 
   - id: example-ashby
-    name: Example Company (Ashby)
+    name: Example Company (Ashby - Template)
     enabled: false
-    priority: high
+    priority: low
     categories:
       - software
-      - qa
     locations:
       - Remote
     sources:
       - type: ashby
         board_name: examplecompany
-    notes: "Placeholder for testing Ashby integration"
-
-  - id: example-jsonld
-    name: Example Company (JSON-LD)
-    enabled: false
-    priority: medium
-    categories:
-      - software
-    locations:
-      - Remote
-    sources:
-      - type: jsonld
-        site_url: https://example.com/careers
-    notes: "Placeholder for testing JSON-LD integration"
+    notes: "Template for Ashby-based companies - replace with real board name"
