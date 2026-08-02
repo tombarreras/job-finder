@@ -1,0 +1,53 @@
+{
+  "search": {
+    "total": 3,
+    "jobPostings": [
+      {
+        "title": "Customer Service Representative (Automotive)",
+        "externalPath": "/job/Austin-Fleet-Mobility-Services/Customer-Service-Representative--Automotive-_JR104602",
+        "timeType": "Full time",
+        "locationsText": "Austin Fleet Mobility Services",
+        "postedOn": "Posted 5 Days Ago",
+        "bulletFields": ["JR104602"]
+      },
+      {
+        "title": "Electrician Helper",
+        "externalPath": "/job/Austin-Energy/Electrician-Helper_JR104610",
+        "timeType": "Full time",
+        "locationsText": "Austin Energy",
+        "postedOn": "Posted Today",
+        "bulletFields": ["JR104610"]
+      },
+      {
+        "title": "Software Developer II (Hybrid)",
+        "externalPath": "/job/Austin-Remote/Software-Developer-II_JR104688",
+        "timeType": "Part time",
+        "locationsText": "Austin, TX - Hybrid",
+        "postedOn": "Posted 30+ Days Ago",
+        "bulletFields": ["JR104688"]
+      }
+    ],
+    "facets": [],
+    "userAuthenticated": false
+  },
+  "detail": {
+    "jobPostingInfo": {
+      "id": "1f1f1d4216fd10010c4a02246b410000",
+      "title": "Electrician Helper",
+      "jobDescription": "<p><b>About This Position</b></p><p>Assist licensed electricians with installation and repair.</p>",
+      "location": "Austin Energy",
+      "postedOn": "Posted Today",
+      "startDate": "2026-07-28",
+      "timeType": "Full time",
+      "jobReqId": "JR104610",
+      "jobPostingId": "Electrician-Helper_JR104610",
+      "jobPostingSiteId": "COA_Careers",
+      "canApply": true,
+      "posted": true,
+      "externalUrl": "https://austintexas.wd5.myworkdayjobs.com/COA_Careers/job/Austin-Energy/Electrician-Helper_JR104610",
+      "endDate": "2026-08-04"
+    },
+    "hiringOrganization": {"name": "City of Austin"},
+    "userAuthenticated": false
+  }
+}

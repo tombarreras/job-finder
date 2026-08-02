@@ -9,6 +9,7 @@ from job_collector.collectors.base import JobCollector
 from job_collector.collectors.greenhouse import GreenhouseCollector
 from job_collector.collectors.jsonld import JSONLDCollector
 from job_collector.collectors.lever import LeverCollector
+from job_collector.collectors.workday import WorkdayCollector
 from job_collector.config import JobCollectorConfig, SourceConfig
 from job_collector.database import JobDatabase
 from job_collector.models import JobStatus, NormalizedJob
@@ -25,6 +26,7 @@ class JobCollectionOrchestrator:
         "lever": LeverCollector,
         "ashby": AshbyCollector,
         "jsonld": JSONLDCollector,
+        "workday": WorkdayCollector,
     }
 
     def __init__(self, config: JobCollectorConfig, database: JobDatabase) -> None:
@@ -77,11 +79,9 @@ class JobCollectionOrchestrator:
 
                 jobs, company_id, source, errors = result
 
-                # Process jobs
-                for job in jobs:
-                    all_jobs.append(job)
-                    source_id = f"{company_id}#{source.type}"
-                    self.database.save_job(job, source_id)
+                # Collect only; persisting here would make every job look like
+                # it already existed once status detection queries the table.
+                all_jobs.extend(jobs)
 
                 # Track errors
                 if errors:
@@ -101,8 +101,14 @@ class JobCollectionOrchestrator:
                 else:
                     self.database.update_source_status(source_id, "success")
 
-        # Detect job status changes
+        # Detect job status changes against the previous run's state, then
+        # persist. Expired entries are placeholders, not real postings.
         all_jobs = self._detect_status_changes(all_jobs)
+
+        for job in all_jobs:
+            if job.status == JobStatus.EXPIRED:
+                continue
+            self.database.save_job(job, f"{job.source_company_id}#{job.source_type}")
 
         # Count jobs by status
         stats = {

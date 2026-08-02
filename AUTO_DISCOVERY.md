@@ -1,5 +1,13 @@
 # Automated Source Discovery
 
+> **⚠️ Superseded — see [STATUS.md](STATUS.md).**
+>
+> This tool produced **zero** usable sources when run against the real employer
+> list. It labels any page returning HTTP 200 as `jsonld` at confidence 0.3, so
+> every employer was recorded as "detected but inaccessible" rather than "not
+> detected". It also identifies Workday correctly and then discards the result.
+> `config/companies_discovered.yaml` is its misleading output; do not use it.
+
 Skip the manual validation process! Use automated source discovery to instantly validate all 70+ employers.
 
 ## Quick Start

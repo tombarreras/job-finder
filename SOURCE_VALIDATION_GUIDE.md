@@ -1,5 +1,12 @@
 # Source Validation Guide
 
+> **⚠️ Partly superseded — see [STATUS.md](STATUS.md).**
+>
+> The ATS for all 66 employers has already been identified by live probe; the
+> results are tabulated in STATUS.md. No employer uses Greenhouse, Lever, Ashby,
+> or JSON-LD. The per-company procedure below is still useful when adding a
+> *new* employer.
+
 This guide explains how to discover the underlying ATS for each company and enable them in the job collector.
 
 ## Before You Start

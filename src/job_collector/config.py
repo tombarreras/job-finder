@@ -24,6 +24,11 @@ class SourceConfig:
     board_name: Optional[str] = None
     site_url: Optional[str] = None
 
+    # Workday coordinates; also derivable from site_url
+    tenant: Optional[str] = None
+    wd_host: Optional[str] = None
+    site: Optional[str] = None
+
     # Tracking (stored in DB, not YAML)
     last_successful_check: Optional[str] = None
     last_error: Optional[str] = None
@@ -81,9 +86,15 @@ class JobCollectorConfig:
                     type=source_dict.get("type", ""),
                     enabled=source_dict.get("enabled", True),
                     timeout_seconds=source_dict.get("timeout_seconds", 30),
+                    tags=source_dict.get("tags", []),
+                    location_overrides=source_dict.get("location_overrides", []),
+                    parsing_config=source_dict.get("parsing_config", {}),
                     board_token=source_dict.get("board_token"),
                     board_name=source_dict.get("board_name"),
                     site_url=source_dict.get("site_url"),
+                    tenant=source_dict.get("tenant"),
+                    wd_host=source_dict.get("wd_host"),
+                    site=source_dict.get("site"),
                 )
                 sources.append(source)
 
@@ -144,7 +155,14 @@ class JobCollectorConfig:
             if not company.sources:
                 errors.append(f"Company {company.id} has no sources")
             for source in company.sources:
-                if source.type not in ["greenhouse", "lever", "ashby", "jsonld"]:
+                if source.type not in ["greenhouse", "lever", "ashby", "jsonld", "workday"]:
                     errors.append(f"Unknown source type: {source.type}")
+                if source.type == "workday" and not (
+                    (source.tenant and source.site) or source.site_url
+                ):
+                    errors.append(
+                        f"Company {company.id}: workday source needs tenant + site "
+                        f"(or a site_url to derive them from)"
+                    )
 
         return errors

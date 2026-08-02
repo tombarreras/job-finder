@@ -1,6 +1,7 @@
 """Report generation for jobs."""
 import json
 import logging
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -42,11 +43,14 @@ class ReportGenerator:
         json_archive = archive_dir / f"{date_str}.json"
         md_archive = archive_dir / f"{date_str}.md"
 
-        self.output_dir.joinpath(json_path).replace(json_archive)
-        self.output_dir.joinpath(md_path).replace(md_archive)
+        # _generate_* already return paths under output_dir; joining again would
+        # look for output/output/. Copy rather than move so the latest_* files
+        # the deployment docs point at stay in place.
+        shutil.copy2(json_path, json_archive)
+        shutil.copy2(md_path, md_archive)
 
-        logger.info(f"Reports generated: {json_archive}, {md_archive}")
-        return json_archive, md_archive
+        logger.info(f"Reports generated: {json_path}, {md_path}")
+        return json_path, md_path
 
     def _generate_json(
         self,

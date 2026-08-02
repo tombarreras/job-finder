@@ -2,10 +2,13 @@
 import argparse
 import logging
 import sys
+from collections import Counter
 from pathlib import Path
 
 from job_collector.config import JobCollectorConfig
 from job_collector.database import JobDatabase
+
+logger = logging.getLogger(__name__)
 
 
 def setup_logging(log_level: str) -> None:
@@ -132,20 +135,30 @@ def report(args: argparse.Namespace) -> int:
         config = JobCollectorConfig.from_yaml(config_dir)
         db = JobDatabase(db_path)
 
-        # TODO: Query jobs from database
-        jobs = []
+        jobs = db.get_recent_jobs()
         source_errors = []
+
+        enabled_sources = [
+            s for c in config.companies for s in c.sources if c.enabled and s.enabled
+        ]
 
         generator = ReportGenerator(output_dir)
         json_path, md_path = generator.generate_reports(
             jobs,
-            {"source_count": 0, "successful_sources": 0, "failed_sources": 0},
+            {
+                "source_count": len(enabled_sources),
+                "successful_sources": len(enabled_sources),
+                "failed_sources": 0,
+            },
             source_errors,
+            include_unchanged=getattr(args, "include_unchanged", False),
         )
 
-        print(f"Reports generated:")
+        counts = Counter(job.status.value for job in jobs)
+        print("Reports generated:")
         print(f"  JSON: {json_path}")
         print(f"  Markdown: {md_path}")
+        print(f"  Jobs: {len(jobs)} ({dict(counts)})")
         return 0
 
     except Exception as e:

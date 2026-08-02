@@ -16,11 +16,12 @@ companies:
   career_page_url: https://jobs.apple.com/en-us/search?location=austin-AST
   sources:
   - type: jsonld
+    jsonld: null
     site_url: https://jobs.apple.com/en-us/search?location=austin-AST
-    timeout_seconds: 30
+    enabled: false
   notes: Custom search page - may need JSON-LD parsing or fallback to direct page
     check
-  discovery_result: detection_failed
+  discovery_result: no_access
 - id: dell-technologies
   name: Dell Technologies
   enabled: false
@@ -36,10 +37,11 @@ companies:
   career_page_url: https://jobs.dell.com/
   sources:
   - type: jsonld
+    jsonld: null
     site_url: https://jobs.dell.com/
-    timeout_seconds: 30
+    enabled: false
   notes: Enterprise ATS - likely Greenhouse or similar
-  discovery_result: detection_failed
+  discovery_result: no_access
 - id: ibm
   name: IBM
   enabled: false
@@ -54,10 +56,11 @@ companies:
   career_page_url: https://www.ibm.com/careers/search
   sources:
   - type: jsonld
+    jsonld: null
     site_url: https://www.ibm.com/careers/search
-    timeout_seconds: 30
+    enabled: false
   notes: Large enterprise ATS system
-  discovery_result: detection_failed
+  discovery_result: no_access
 - id: q2-holdings
   name: Q2 Holdings
   enabled: false
@@ -70,10 +73,11 @@ companies:
   career_page_url: https://www.q2.com/company/why-work-at-q2/careers
   sources:
   - type: jsonld
+    jsonld: null
     site_url: https://www.q2.com/company/why-work-at-q2/careers
-    timeout_seconds: 30
+    enabled: false
   notes: Austin-based fintech - discover underlying ATS
-  discovery_result: detection_failed
+  discovery_result: no_access
 - id: sailpoint
   name: SailPoint
   enabled: false
@@ -86,10 +90,11 @@ companies:
   career_page_url: https://www.sailpoint.com/company/careers
   sources:
   - type: jsonld
+    jsonld: null
     site_url: https://www.sailpoint.com/company/careers
-    timeout_seconds: 30
+    enabled: false
   notes: Austin-based identity company - discover underlying ATS
-  discovery_result: detection_failed
+  discovery_result: no_access
 - id: silicon-labs
   name: Silicon Labs
   enabled: false
@@ -103,10 +108,11 @@ companies:
   career_page_url: https://www.silabs.com/about-us/careers
   sources:
   - type: jsonld
+    jsonld: null
     site_url: https://www.silabs.com/about-us/careers
-    timeout_seconds: 30
+    enabled: false
   notes: Austin-based semiconductor company
-  discovery_result: detection_failed
+  discovery_result: no_access
 - id: cirrus-logic
   name: Cirrus Logic
   enabled: false
@@ -136,10 +142,11 @@ companies:
   career_page_url: https://semiconductor.samsung.com/sas/work-with-us/job-opportunities/
   sources:
   - type: jsonld
+    jsonld: null
     site_url: https://semiconductor.samsung.com/sas/work-with-us/job-opportunities/
-    timeout_seconds: 30
+    enabled: false
   notes: Large Austin-based semiconductor fab
-  discovery_result: detection_failed
+  discovery_result: no_access
 - id: tesla-austin
   name: Tesla (Austin)
   enabled: false
@@ -184,10 +191,11 @@ companies:
   career_page_url: https://www.nxp.com/company/about-nxp/careers:CAREERS
   sources:
   - type: jsonld
+    jsonld: null
     site_url: https://www.nxp.com/company/about-nxp/careers:CAREERS
-    timeout_seconds: 30
+    enabled: false
   notes: Semiconductor company with enterprise ATS
-  discovery_result: detection_failed
+  discovery_result: no_access
 - id: amd
   name: AMD
   enabled: false
@@ -200,10 +208,11 @@ companies:
   career_page_url: https://careers.amd.com/careers-home
   sources:
   - type: jsonld
+    jsonld: null
     site_url: https://careers.amd.com/careers-home
-    timeout_seconds: 30
+    enabled: false
   notes: Semiconductor company
-  discovery_result: detection_failed
+  discovery_result: no_access
 - id: flex
   name: Flex
   enabled: false
@@ -216,10 +225,11 @@ companies:
   career_page_url: https://flex.com/careers/united-states
   sources:
   - type: jsonld
+    jsonld: null
     site_url: https://flex.com/careers/united-states
-    timeout_seconds: 30
+    enabled: false
   notes: Electronics manufacturing services
-  discovery_result: detection_failed
+  discovery_result: no_access
 - id: city-of-austin
   name: City of Austin
   enabled: false
@@ -233,10 +243,11 @@ companies:
   career_page_url: https://www.austincityjobs.org/
   sources:
   - type: jsonld
+    jsonld: null
     site_url: https://www.austincityjobs.org/
-    timeout_seconds: 30
+    enabled: false
   notes: Municipal government jobs
-  discovery_result: detection_failed
+  discovery_result: no_access
 - id: state-of-texas
   name: State of Texas
   enabled: false
@@ -251,10 +262,11 @@ companies:
   career_page_url: https://capps.taleo.net/careersection/ex/jobsearch.ftl
   sources:
   - type: jsonld
+    jsonld: null
     site_url: https://capps.taleo.net/careersection/ex/jobsearch.ftl
-    timeout_seconds: 30
+    enabled: false
   notes: State government - uses Taleo ATS
-  discovery_result: detection_failed
+  discovery_result: no_access
 - id: university-of-texas-austin
   name: University of Texas at Austin
   enabled: false
@@ -268,10 +280,11 @@ companies:
   career_page_url: https://utaustin.wd1.myworkdayjobs.com/UTstaff
   sources:
   - type: jsonld
+    jsonld: null
     site_url: https://utaustin.wd1.myworkdayjobs.com/UTstaff
-    timeout_seconds: 30
+    enabled: false
   notes: Uses Workday ATS - may need custom parsing
-  discovery_result: detection_failed
+  discovery_result: no_access
 - id: austin-community-college
   name: Austin Community College
   enabled: false
@@ -284,10 +297,11 @@ companies:
   career_page_url: https://austincc.wd1.myworkdayjobs.com/External
   sources:
   - type: jsonld
+    jsonld: null
     site_url: https://austincc.wd1.myworkdayjobs.com/External
-    timeout_seconds: 30
+    enabled: false
   notes: Uses Workday ATS
-  discovery_result: detection_failed
+  discovery_result: no_access
 - id: lower-colorado-river-authority
   name: Lower Colorado River Authority
   enabled: false
@@ -336,10 +350,11 @@ companies:
   career_page_url: https://careers.tdindustries.com/
   sources:
   - type: jsonld
+    jsonld: null
     site_url: https://careers.tdindustries.com/
-    timeout_seconds: 30
+    enabled: false
   notes: Major HVAC/electrical contractor in Austin
-  discovery_result: detection_failed
+  discovery_result: no_access
 - id: example-greenhouse
   name: Example Company (Greenhouse - Template)
   enabled: false

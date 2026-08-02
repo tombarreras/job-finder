@@ -78,7 +78,7 @@ companies:
 
   - id: q2-holdings
     name: Q2 Holdings
-    enabled: false
+    enabled: true
     priority: high
     categories:
       - software
@@ -87,14 +87,16 @@ companies:
       - Austin, TX
     career_page_url: https://www.q2.com/company/why-work-at-q2/careers
     sources:
-      - type: jsonld
-        site_url: https://www.q2.com/company/why-work-at-q2/careers
+      - type: workday
+        tenant: q2ebanking
+        wd_host: wd5
+        site: Q2
         timeout_seconds: 30
     notes: "Austin-based fintech - discover underlying ATS"
 
   - id: sailpoint
     name: SailPoint
-    enabled: false
+    enabled: true
     priority: high
     categories:
       - software
@@ -103,14 +105,16 @@ companies:
       - Austin, TX
     career_page_url: https://www.sailpoint.com/company/careers
     sources:
-      - type: jsonld
-        site_url: https://www.sailpoint.com/company/careers
+      - type: workday
+        tenant: sailpoint
+        wd_host: wd1
+        site: SailPoint
         timeout_seconds: 30
     notes: "Austin-based identity company - discover underlying ATS"
 
   - id: silicon-labs
     name: Silicon Labs
-    enabled: false
+    enabled: true
     priority: high
     categories:
       - software
@@ -120,8 +124,10 @@ companies:
       - Austin, TX
     career_page_url: https://www.silabs.com/about-us/careers
     sources:
-      - type: jsonld
-        site_url: https://www.silabs.com/about-us/careers
+      - type: workday
+        tenant: silabs
+        wd_host: wd1
+        site: SiliconLabsCareers
         timeout_seconds: 30
     notes: "Austin-based semiconductor company"
 
@@ -194,7 +200,7 @@ companies:
 
   - id: nxp-semiconductors
     name: NXP Semiconductors
-    enabled: false
+    enabled: true
     priority: high
     categories:
       - software
@@ -203,9 +209,18 @@ companies:
       - Remote
     career_page_url: https://www.nxp.com/company/about-nxp/careers:CAREERS
     sources:
-      - type: jsonld
-        site_url: https://www.nxp.com/company/about-nxp/careers:CAREERS
+      - type: workday
+        tenant: nxp
+        wd_host: wd3
+        site: careers
         timeout_seconds: 30
+        parsing_config:
+          search_terms:
+            - software engineer
+            - software developer
+            - quality assurance
+            - qa engineer
+            - test engineer
     notes: "Semiconductor company with enterprise ATS"
 
   - id: amd
@@ -244,7 +259,7 @@ companies:
 
   - id: city-of-austin
     name: City of Austin
-    enabled: false
+    enabled: true
     priority: high
     categories:
       - it-support
@@ -254,8 +269,10 @@ companies:
       - Austin, TX
     career_page_url: https://www.austincityjobs.org/
     sources:
-      - type: jsonld
-        site_url: https://www.austincityjobs.org/
+      - type: workday
+        tenant: austintexas
+        wd_host: wd5
+        site: COA_Careers
         timeout_seconds: 30
     notes: "Municipal government jobs"
 
@@ -279,7 +296,7 @@ companies:
 
   - id: university-of-texas-austin
     name: University of Texas at Austin
-    enabled: false
+    enabled: true
     priority: high
     categories:
       - it-support
@@ -289,14 +306,24 @@ companies:
       - Austin, TX
     career_page_url: https://utaustin.wd1.myworkdayjobs.com/UTstaff
     sources:
-      - type: jsonld
-        site_url: https://utaustin.wd1.myworkdayjobs.com/UTstaff
+      - type: workday
+        tenant: utaustin
+        wd_host: wd1
+        site: UTstaff
         timeout_seconds: 30
+        parsing_config:
+          search_terms:
+            - software
+            - quality assurance
+            - electrician
+            - helper
+            - construction
+            - maintenance technician
     notes: "Uses Workday ATS - may need custom parsing"
 
   - id: austin-community-college
     name: Austin Community College
-    enabled: false
+    enabled: true
     priority: medium
     categories:
       - it-support
@@ -305,8 +332,10 @@ companies:
       - Austin, TX
     career_page_url: https://austincc.wd1.myworkdayjobs.com/External
     sources:
-      - type: jsonld
-        site_url: https://austincc.wd1.myworkdayjobs.com/External
+      - type: workday
+        tenant: austincc
+        wd_host: wd1
+        site: External
         timeout_seconds: 30
     notes: "Uses Workday ATS"
 
@@ -329,7 +358,7 @@ companies:
 
   - id: ercot
     name: ERCOT
-    enabled: false
+    enabled: true
     priority: medium
     categories:
       - it-support
@@ -339,8 +368,10 @@ companies:
       - Austin, TX
     career_page_url: https://careers.ercot.com/
     sources:
-      - type: jsonld
-        site_url: https://careers.ercot.com/
+      - type: workday
+        tenant: ercot
+        wd_host: wd1
+        site: ercot_careers
         timeout_seconds: 30
     notes: "Texas electric grid operator"
 
@@ -365,6 +396,130 @@ companies:
     notes: "Major HVAC/electrical contractor in Austin"
 
   # Additional validation examples
+
+  - id: adobe
+    name: Adobe
+    enabled: true
+    priority: high
+    categories:
+      - software
+      - qa
+    locations:
+      - Austin, TX
+      - Remote
+    career_page_url: https://adobe.wd5.myworkdayjobs.com/external_experienced
+    sources:
+      - type: workday
+        tenant: adobe
+        wd_host: wd5
+        site: external_experienced
+        timeout_seconds: 30
+        parsing_config:
+          search_terms:
+            - software engineer
+            - software developer
+            - quality assurance
+            - qa engineer
+            - test engineer
+    notes: "Workday CXS API - verified 2026-08-02"
+
+  - id: intel
+    name: Intel
+    enabled: true
+    priority: high
+    categories:
+      - software
+      - qa
+      - manufacturing
+    locations:
+      - Austin, TX
+      - Remote
+    career_page_url: https://intel.wd1.myworkdayjobs.com/External
+    sources:
+      - type: workday
+        tenant: intel
+        wd_host: wd1
+        site: External
+        timeout_seconds: 30
+        parsing_config:
+          search_terms:
+            - software engineer
+            - software developer
+            - quality assurance
+            - qa engineer
+            - test engineer
+    notes: "Workday CXS API - verified 2026-08-02"
+
+  - id: thermo-fisher-scientific
+    name: Thermo Fisher Scientific
+    enabled: true
+    priority: high
+    categories:
+      - software
+      - qa
+      - laboratory
+    locations:
+      - Austin, TX
+      - Remote
+    career_page_url: https://thermofisher.wd5.myworkdayjobs.com/ThermoFisherCareers
+    sources:
+      - type: workday
+        tenant: thermofisher
+        wd_host: wd5
+        site: ThermoFisherCareers
+        timeout_seconds: 30
+        parsing_config:
+          search_terms:
+            - software engineer
+            - software developer
+            - quality assurance
+            - qa engineer
+            - test engineer
+    notes: "Workday CXS API - verified 2026-08-02"
+
+  - id: capital-metro
+    name: Capital Metro
+    enabled: true
+    priority: high
+    categories:
+      - software
+      - qa
+      - trades
+    locations:
+      - Austin, TX
+    career_page_url: https://mtminc.wd1.myworkdayjobs.com/MTM_External
+    sources:
+      - type: workday
+        tenant: mtminc
+        wd_host: wd1
+        site: MTM_External
+        timeout_seconds: 30
+    notes: "Workday CXS API - verified 2026-08-02"
+
+  - id: clinical-pathology-labs
+    name: Clinical Pathology Laboratories / Sonic Healthcare
+    enabled: true
+    priority: high
+    categories:
+      - laboratory
+      - qa
+    locations:
+      - Austin, TX
+    career_page_url: https://shusa.wd5.myworkdayjobs.com/External
+    sources:
+      - type: workday
+        tenant: shusa
+        wd_host: wd5
+        site: External
+        timeout_seconds: 30
+        parsing_config:
+          search_terms:
+            - software engineer
+            - software developer
+            - quality assurance
+            - qa engineer
+            - test engineer
+    notes: "Workday CXS API - verified 2026-08-02"
 
   - id: example-greenhouse
     name: Example Company (Greenhouse - Template)

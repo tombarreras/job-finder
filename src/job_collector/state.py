@@ -30,7 +30,7 @@ class StateManager:
             # Check if job exists in database
             cursor.execute(
                 """
-                SELECT current_content_hash, active, content_hash
+                SELECT current_content_hash, active
                 FROM jobs
                 WHERE source_id = ? AND source_job_id = ?
                 LIMIT 1
@@ -45,7 +45,7 @@ class StateManager:
                 new_job.status = JobStatus.NEW
                 return new_job, "new"
 
-            current_hash, is_active, _ = result
+            current_hash, is_active = result
 
             if not is_active:
                 # Job was previously expired but is now active again

@@ -171,6 +171,10 @@ class JobDatabase:
                 "salary_period": job.salary_period,
                 "education_requirements": job.education_requirements,
                 "experience_requirements": job.experience_requirements,
+                # Rendered by the reports, so they have to survive the round trip
+                "description_text": job.description_text,
+                "salary_text": job.salary_text,
+                "date_posted": job.date_posted.isoformat() if job.date_posted else None,
                 "category": job.category,
                 "entry_level_signal": job.entry_level_signal,
                 "seniority_warning": job.seniority_warning,
@@ -239,6 +243,85 @@ class JobDatabase:
                 jobs[source_job_id] = internal_id
 
         return jobs
+
+    def get_recent_jobs(self, statuses: set[str] | None = None) -> list[NormalizedJob]:
+        """Rebuild jobs from each posting's most recent observation.
+
+        The status of a posting lives on its observations rather than the job
+        row, so the newest observation supplies the status for reporting.
+        """
+        jobs: list[NormalizedJob] = []
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT j.source_job_id, j.company_name, j.title, j.location,
+                       j.apply_url, j.source_url, j.current_content_hash,
+                       j.first_seen_at, j.last_seen_at, j.data_json,
+                       o.observed_status
+                FROM jobs j
+                JOIN job_observations o ON o.observation_id = (
+                    SELECT observation_id FROM job_observations
+                    WHERE job_id = j.internal_id
+                    ORDER BY rowid DESC LIMIT 1
+                )
+                WHERE j.active = 1
+                """
+            )
+            rows = cursor.fetchall()
+
+        for row in rows:
+            (source_job_id, company_name, title, location, apply_url, source_url,
+             content_hash, first_seen, last_seen, data_json, status) = row
+
+            if statuses and status not in statuses:
+                continue
+
+            data = json.loads(data_json) if data_json else {}
+            jobs.append(
+                NormalizedJob(
+                    source_type=data.get("source_type", ""),
+                    source_company_id=data.get("source_company_id", ""),
+                    source_job_id=source_job_id,
+                    company_name=company_name,
+                    title=title,
+                    location=location or "",
+                    apply_url=apply_url or "",
+                    source_url=source_url or "",
+                    date_posted=self._parse_iso(data.get("date_posted")),
+                    description_text=data.get("description_text", ""),
+                    employment_type=EmploymentType(
+                        data.get("employment_type", EmploymentType.UNKNOWN.value)
+                    ),
+                    remote_status=RemoteStatus(
+                        data.get("remote_status", RemoteStatus.UNKNOWN.value)
+                    ),
+                    salary_text=data.get("salary_text", ""),
+                    first_seen_at=self._parse_iso(first_seen) or datetime.utcnow(),
+                    last_seen_at=self._parse_iso(last_seen) or datetime.utcnow(),
+                    content_hash=content_hash or "",
+                    status=JobStatus(status),
+                    department=data.get("department", ""),
+                    salary_min=data.get("salary_min"),
+                    salary_max=data.get("salary_max"),
+                    salary_currency=data.get("salary_currency", "USD"),
+                    category=data.get("category", ""),
+                    warning_flags=data.get("warning_flags", []),
+                )
+            )
+
+        return jobs
+
+    @staticmethod
+    def _parse_iso(value: str | None) -> datetime | None:
+        """Parse an ISO timestamp, tolerating nulls and legacy formats."""
+        if not value:
+            return None
+        try:
+            return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            return None
 
     def mark_jobs_inactive(self, source_id: str, active_job_ids: set[str]) -> None:
         """Mark jobs as inactive if they're no longer in source results."""
