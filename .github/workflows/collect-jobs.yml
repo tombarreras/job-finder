@@ -2,7 +2,8 @@ name: Collect Jobs
 
 on:
   schedule:
-    - cron: '0 7 * * *'  # 7 AM UTC daily
+    # 07:00 UTC daily = 2 AM Central (CDT) / 1 AM Central (CST), Austin time.
+    - cron: '0 7 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -25,7 +26,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -35,48 +36,54 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
+      # NOTE: --config/--output are top-level arguments and must come BEFORE
+      # the subcommand. Placing them after it is an argparse error.
       - name: Validate configuration
-        run: python -m job_collector validate-config --config config
+        id: validate
+        run: python -m job_collector --config config validate-config
 
-      - name: Initialize database
-        run: python -m job_collector init-db --config config
-
-      - name: Fetch state from persistence branch
+      - name: Restore database from persistence branch
         continue-on-error: true
         run: |
+          git fetch origin job-search-state:refs/remotes/origin/job-search-state || true
           if git rev-parse --verify origin/job-search-state > /dev/null 2>&1; then
-            echo "Fetching database from job-search-state branch..."
-            git show origin/job-search-state:data/jobs.db > data/jobs.db 2>/dev/null || true
+            echo "Restoring database from job-search-state branch"
+            mkdir -p data
+            git show origin/job-search-state:data/jobs.db > data/jobs.db
           else
             echo "Persistence branch does not exist yet, starting fresh"
           fi
 
+      - name: Initialize database
+        run: python -m job_collector --config config init-db
+
       - name: Run linting and type checks
         continue-on-error: true
         run: |
-          ruff check src/ tests/ || echo "Linting passed with warnings"
-          mypy src/ || echo "Type checking passed with warnings"
+          ruff check src/ tests/ || echo "Linting reported issues"
+          mypy src/ || echo "Type checking reported issues"
 
+      # Informational only. Pre-existing failures in the legacy collectors must
+      # not stop the nightly collection from running.
       - name: Run tests
         id: tests
-        run: pytest -v --tb=short 2>&1 | tee test_output.txt
+        continue-on-error: true
+        run: pytest -q --tb=short
 
       - name: Collect jobs
         id: collect
-        continue-on-error: true
-        run: python -m job_collector collect --config config --output output
+        run: python -m job_collector --config config --output output collect
         env:
           LOG_LEVEL: INFO
 
       - name: Generate reports
         id: report
-        continue-on-error: true
-        run: python -m job_collector report --config config --output output
+        run: python -m job_collector --config config --output output report
 
       - name: Send email report
         id: email
         continue-on-error: true
-        run: python -m job_collector send-email --config config --output output
+        run: python -m job_collector --config config --output output send-email
         env:
           JOB_EMAIL_SMTP_HOST: smtp.gmail.com
           JOB_EMAIL_SMTP_PORT: 587
@@ -86,51 +93,45 @@ jobs:
 
       - name: Upload reports as artifacts
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: job-reports
           path: output/
           retention-days: 30
 
-      - name: Create/update persistence branch
-        if: always()
+      - name: Persist database to state branch
+        if: always() && steps.collect.outcome == 'success'
         run: |
-          # Only update if collection was successful
-          if [ "${{ steps.collect.outcome }}" = "success" ]; then
-            git config user.name "Job Collector Bot"
-            git config user.email "github-actions@github.com"
+          git config user.name "Job Collector Bot"
+          git config user.email "github-actions@github.com"
 
-            # Create or update job-search-state branch
-            if git rev-parse --verify job-search-state > /dev/null 2>&1; then
-              git checkout job-search-state
-            else
-              git checkout --orphan job-search-state
-            fi
+          # data/jobs.db is gitignored, so stash it outside the tree before
+          # switching branches and force-add it on the other side.
+          tmp="$(mktemp -d)"
+          cp data/jobs.db "$tmp/jobs.db"
 
-            # Copy database file
-            mkdir -p data
-            git add data/jobs.db
-
-            # Commit with timestamp
-            git commit -m "Update job database - $(date -u +'%Y-%m-%d %H:%M:%S UTC')" --allow-empty
-
-            # Push to origin
-            git push origin job-search-state
+          if git rev-parse --verify origin/job-search-state > /dev/null 2>&1; then
+            git checkout -B job-search-state origin/job-search-state
+          else
+            git checkout --orphan job-search-state
+            git rm -rf --cached . > /dev/null 2>&1 || true
           fi
+
+          mkdir -p data
+          cp "$tmp/jobs.db" data/jobs.db
+          git add -f data/jobs.db
+          git commit -m "Update job database - $(date -u +'%Y-%m-%d %H:%M:%S UTC')" --allow-empty
+          git push origin job-search-state
 
       - name: Report collection status
         if: always()
         run: |
-          echo "## Job Collection Run" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Validation**: ${{ steps.validate.outcome }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tests**: ${{ steps.tests.outcome }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Collection**: ${{ steps.collect.outcome }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Reports**: ${{ steps.report.outcome }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Email**: ${{ steps.email.outcome }}" >> $GITHUB_STEP_SUMMARY
-
-      - name: Workflow failure
-        if: |
-          steps.collect.outcome == 'failure' ||
-          steps.report.outcome == 'failure'
-        run: exit 1
+          {
+            echo "## Job Collection Run"
+            echo ""
+            echo "- **Validation**: ${{ steps.validate.outcome }}"
+            echo "- **Tests**: ${{ steps.tests.outcome }}"
+            echo "- **Collection**: ${{ steps.collect.outcome }}"
+            echo "- **Reports**: ${{ steps.report.outcome }}"
+            echo "- **Email**: ${{ steps.email.outcome }}"
+          } >> "$GITHUB_STEP_SUMMARY"

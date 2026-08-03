@@ -202,6 +202,31 @@ continuously. Revisit only once the core system runs daily.
 
 ---
 
+## Daily automation
+
+`.github/workflows/collect-jobs.yml` runs at `0 7 * * *` (07:00 UTC = 2 AM
+Central). The schedule was always present but the workflow would have failed
+every night; fixed:
+
+- **Every CLI call had the wrong flag order.** `--config`/`--output` are
+  top-level arguments and must precede the subcommand, so all five invocations
+  were argparse errors.
+- **The test step gated collection.** Pre-existing failures in the legacy
+  collectors would have stopped the run before it collected anything. Now
+  `continue-on-error`, informational only.
+- **`upload-artifact@v3` is retired** by GitHub and fails hard. Now v4.
+- **State persistence never worked.** The state branch was never fetched, so
+  every run started fresh; and `data/jobs.db` is gitignored, so `git add` was a
+  silent no-op. Now fetched explicitly and force-added.
+
+Still required before email works: **`config/email.yaml`** does not exist (only
+`email.yaml.example`), and the three `JOB_EMAIL_*` secrets must be set in the
+repo. The email step is `continue-on-error`, so collection and reports work
+without it.
+
+GitHub disables scheduled workflows in repositories with no commit activity for
+60 days.
+
 ## Running it
 
 ```bash
