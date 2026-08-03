@@ -85,6 +85,14 @@ class NormalizedJob:
     possible_duplicate_group: Optional[str] = None
     duplicate_confidence: float = 0.0
 
+    @property
+    def source_id(self) -> str:
+        """Identifier of the source this job came from.
+
+        Matches the key used for the `sources` table and for job internal ids.
+        """
+        return f"{self.source_company_id}#{self.source_type}"
+
 
 @dataclass
 class CollectionResult:

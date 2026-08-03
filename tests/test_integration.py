@@ -7,7 +7,7 @@ import pytest
 
 from job_collector.collection import JobCollectionOrchestrator
 from job_collector.config import CompanyConfig, JobCollectorConfig, SourceConfig
-from job_collector.database import JobDatabase
+from job_collector.database import JobDatabase, connect
 from job_collector.models import EmploymentType, RemoteStatus
 
 
@@ -147,7 +147,7 @@ def test_database_state_persistence(temp_db, sample_job):
 
     # Verify it was saved
     import sqlite3
-    with sqlite3.connect(temp_db) as conn:
+    with connect(temp_db) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM jobs WHERE source_id = ?", ("source-1",))
         count = cursor.fetchone()[0]

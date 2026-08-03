@@ -20,9 +20,11 @@ def normalize_location(location: str) -> str:
     location = location.lower().strip()
     # Remove country codes and common suffixes
     location = re.sub(r'\s*,\s*US[A]?\s*$', '', location, flags=re.IGNORECASE)
-    location = re.sub(r'\s*\(.*?\)\s*$', '', location)
+    # Parenthetical notes ("San Francisco (Bay Area), CA") can appear mid-string,
+    # not just at the end.
+    location = re.sub(r'\s*\([^)]*\)', '', location)
     location = re.sub(r'\s+', ' ', location)
-    return location
+    return location.strip()
 
 
 def normalize_company(company: str) -> str:
@@ -45,7 +47,7 @@ def clean_html(text: str) -> str:
 
 
 def truncate_text(text: str, max_length: int = 2000) -> str:
-    """Truncate text while preserving sentence boundaries."""
+    """Truncate text to at most max_length characters, including any ellipsis."""
     if len(text) <= max_length:
         return text
 
@@ -55,7 +57,8 @@ def truncate_text(text: str, max_length: int = 2000) -> str:
     if last_period > max_length * 0.8:
         return truncated[:last_period + 1]
 
-    return truncated + "..."
+    # Leave room for the ellipsis rather than overshooting max_length.
+    return truncated[:max_length - 3] + "..."
 
 
 def calculate_content_hash(

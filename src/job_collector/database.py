@@ -2,13 +2,30 @@
 import json
 import logging
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Iterator, Optional
 
 from job_collector.models import EmploymentType, JobStatus, NormalizedJob, RemoteStatus
 
 logger = logging.getLogger(__name__)
+
+
+@contextmanager
+def connect(db_path: Path | str) -> Iterator[sqlite3.Connection]:
+    """Open a SQLite connection that commits on success and always closes.
+
+    `with sqlite3.connect(...)` manages the transaction but leaves the
+    connection open, which leaks a handle per call and keeps the file locked on
+    Windows.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        with conn:  # commit on success, roll back on exception
+            yield conn
+    finally:
+        conn.close()
 
 
 class JobDatabase:
@@ -22,7 +39,7 @@ class JobDatabase:
 
     def _init_schema(self) -> None:
         """Initialize database schema."""
-        with sqlite3.connect(self.db_path) as conn:
+        with connect(self.db_path) as conn:
             cursor = conn.cursor()
 
             cursor.execute("""
@@ -113,7 +130,7 @@ class JobDatabase:
 
     def add_or_update_company(self, company_id: str, name: str, enabled: bool = True) -> None:
         """Add or update a company."""
-        with sqlite3.connect(self.db_path) as conn:
+        with connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -136,7 +153,7 @@ class JobDatabase:
         source_key: Optional[str] = None,
     ) -> None:
         """Add or update a source."""
-        with sqlite3.connect(self.db_path) as conn:
+        with connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -154,7 +171,7 @@ class JobDatabase:
         """Save a normalized job to the database."""
         internal_id = self._generate_job_id(source_id, job.source_job_id)
 
-        with sqlite3.connect(self.db_path) as conn:
+        with connect(self.db_path) as conn:
             cursor = conn.cursor()
 
             data = {
@@ -226,7 +243,7 @@ class JobDatabase:
     def get_previous_jobs(self, source_id: str) -> dict[str, NormalizedJob]:
         """Get all previously seen jobs from a source."""
         jobs = {}
-        with sqlite3.connect(self.db_path) as conn:
+        with connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -252,7 +269,7 @@ class JobDatabase:
         """
         jobs: list[NormalizedJob] = []
 
-        with sqlite3.connect(self.db_path) as conn:
+        with connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -325,7 +342,7 @@ class JobDatabase:
 
     def mark_jobs_inactive(self, source_id: str, active_job_ids: set[str]) -> None:
         """Mark jobs as inactive if they're no longer in source results."""
-        with sqlite3.connect(self.db_path) as conn:
+        with connect(self.db_path) as conn:
             cursor = conn.cursor()
 
             # Get all job IDs for this source that were active
@@ -358,7 +375,7 @@ class JobDatabase:
         error: Optional[str] = None,
     ) -> None:
         """Update source collection status."""
-        with sqlite3.connect(self.db_path) as conn:
+        with connect(self.db_path) as conn:
             cursor = conn.cursor()
             if status == "success":
                 cursor.execute(
@@ -388,7 +405,7 @@ class JobDatabase:
 
     def create_run(self, run_id: str) -> None:
         """Create a new report run entry."""
-        with sqlite3.connect(self.db_path) as conn:
+        with connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """

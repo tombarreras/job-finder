@@ -148,7 +148,19 @@ def test_parse_ashby_location_formats():
         },
     }
     job = collector._parse_job(data)
-    assert job.location == "San Francisco, CA, USA"
+    # The US country suffix is dropped as noise; see test_parse_ashby_job.
+    assert job.location == "San Francisco, CA"
+
+    # Non-US country is kept
+    data = {
+        **base_data,
+        "location": {
+            "city": "Berlin",
+            "country": "Germany",
+        },
+    }
+    job = collector._parse_job(data)
+    assert job.location == "Berlin, Germany"
 
     # Partial location
     data = {

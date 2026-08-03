@@ -3,7 +3,7 @@ import json
 import logging
 from datetime import datetime, timedelta
 
-from job_collector.database import JobDatabase
+from job_collector.database import JobDatabase, connect
 from job_collector.models import JobStatus, NormalizedJob
 
 logger = logging.getLogger(__name__)
@@ -22,9 +22,7 @@ class StateManager:
         source_id: str,
     ) -> tuple[NormalizedJob, str]:
         """Detect job status (new, changed, unchanged, expired, reopened)."""
-        import sqlite3
-
-        with sqlite3.connect(self.database.db_path) as conn:
+        with connect(self.database.db_path) as conn:
             cursor = conn.cursor()
 
             # Check if job exists in database
@@ -69,11 +67,9 @@ class StateManager:
         active_job_ids: set[str],
     ) -> list[str]:
         """Detect jobs that are no longer posted."""
-        import sqlite3
-
         expired = []
 
-        with sqlite3.connect(self.database.db_path) as conn:
+        with connect(self.database.db_path) as conn:
             cursor = conn.cursor()
 
             # Get all currently active jobs from this source
@@ -129,8 +125,6 @@ class StateManager:
         source_id: str | None = None,
     ) -> dict[str, list[NormalizedJob]]:
         """Get all jobs grouped by status."""
-        import sqlite3
-
         jobs_by_status = {
             "new": [],
             "changed": [],
@@ -139,7 +133,7 @@ class StateManager:
             "reopened": [],
         }
 
-        with sqlite3.connect(self.database.db_path) as conn:
+        with connect(self.database.db_path) as conn:
             cursor = conn.cursor()
 
             query = "SELECT data_json FROM jobs WHERE 1=1"
@@ -178,10 +172,9 @@ class StateManager:
         source_id: str,
     ) -> None:
         """Record a job observation for change tracking."""
-        import sqlite3
         import uuid
 
-        with sqlite3.connect(self.database.db_path) as conn:
+        with connect(self.database.db_path) as conn:
             cursor = conn.cursor()
 
             internal_id = f"{source_id}#{job.source_job_id}"

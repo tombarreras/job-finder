@@ -135,8 +135,11 @@ class AshbyCollector(JobCollector):
                     parts.append(location_data["city"])
                 if location_data.get("state"):
                     parts.append(location_data["state"])
-                if location_data.get("country"):
-                    parts.append(location_data["country"])
+                # Domestic postings are the norm; "Austin, TX, USA" is noise.
+                # Keep the country only when it is not the US.
+                country = location_data.get("country") or ""
+                if country and country.upper() not in {"US", "USA", "UNITED STATES"}:
+                    parts.append(country)
                 if parts:
                     location = ", ".join(parts)
             else:

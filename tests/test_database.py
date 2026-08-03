@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from job_collector.database import JobDatabase
+from job_collector.database import JobDatabase, connect
 from job_collector.models import EmploymentType, NormalizedJob, RemoteStatus
 
 
@@ -14,7 +14,7 @@ def test_database_initialization(temp_db):
 
     # Check that tables exist
     import sqlite3
-    with sqlite3.connect(temp_db) as conn:
+    with connect(temp_db) as conn:
         cursor = conn.cursor()
         cursor.execute(
             "SELECT name FROM sqlite_master WHERE type='table'"
@@ -34,7 +34,7 @@ def test_save_and_retrieve_company(temp_db):
     db.add_or_update_company("test-company", "Test Company", True)
 
     import sqlite3
-    with sqlite3.connect(temp_db) as conn:
+    with connect(temp_db) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT id, name, enabled FROM companies WHERE id = ?", ("test-company",))
         row = cursor.fetchone()
@@ -57,7 +57,7 @@ def test_save_and_retrieve_source(temp_db):
     )
 
     import sqlite3
-    with sqlite3.connect(temp_db) as conn:
+    with connect(temp_db) as conn:
         cursor = conn.cursor()
         cursor.execute(
             "SELECT id, source_type, source_key FROM sources WHERE id = ?",
@@ -80,7 +80,7 @@ def test_save_job(temp_db, sample_job):
     db.save_job(sample_job, "source-1")
 
     import sqlite3
-    with sqlite3.connect(temp_db) as conn:
+    with connect(temp_db) as conn:
         cursor = conn.cursor()
         cursor.execute(
             "SELECT title, company_name, source_job_id FROM jobs WHERE source_id = ?",
@@ -103,7 +103,7 @@ def test_update_source_status(temp_db):
     db.update_source_status("source-1", "success")
 
     import sqlite3
-    with sqlite3.connect(temp_db) as conn:
+    with connect(temp_db) as conn:
         cursor = conn.cursor()
         cursor.execute(
             "SELECT last_status, consecutive_failures FROM sources WHERE id = ?",
@@ -126,7 +126,7 @@ def test_update_source_status_failure(temp_db):
     db.update_source_status("source-1", "error", "Connection timeout")
 
     import sqlite3
-    with sqlite3.connect(temp_db) as conn:
+    with connect(temp_db) as conn:
         cursor = conn.cursor()
         cursor.execute(
             "SELECT consecutive_failures FROM sources WHERE id = ?",
@@ -150,7 +150,7 @@ def test_mark_jobs_inactive(temp_db, sample_job):
     db.mark_jobs_inactive("source-1", set())  # Empty set of active jobs
 
     import sqlite3
-    with sqlite3.connect(temp_db) as conn:
+    with connect(temp_db) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT active FROM jobs WHERE source_id = ?", ("source-1",))
         row = cursor.fetchone()
@@ -165,7 +165,7 @@ def test_create_run(temp_db):
     db.create_run("run-1")
 
     import sqlite3
-    with sqlite3.connect(temp_db) as conn:
+    with connect(temp_db) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT status FROM report_runs WHERE run_id = ?", ("run-1",))
         row = cursor.fetchone()

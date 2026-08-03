@@ -1,7 +1,7 @@
 """Lever job board collector."""
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -137,10 +137,11 @@ class LeverCollector(JobCollector):
         # Extract department and team
         department = ""
         team = ""
+        # Lever exposes these as {"name": ...}; older payloads used "text".
         if job_data.get("department"):
-            department = job_data["department"].get("text", "")
+            department = job_data["department"].get("name") or job_data["department"].get("text", "")
         if job_data.get("team"):
-            team = job_data["team"].get("text", "")
+            team = job_data["team"].get("name") or job_data["team"].get("text", "")
 
         # Employment type
         employment_type = EmploymentType.FULL_TIME
@@ -166,8 +167,12 @@ class LeverCollector(JobCollector):
         date_posted = None
         if job_data.get("createdAt"):
             try:
-                date_posted = datetime.fromtimestamp(job_data["createdAt"] / 1000)
-            except (ValueError, TypeError):
+                # Lever sends epoch milliseconds UTC. Parsing in local time
+                # would yield a different date on a UTC CI runner than locally.
+                date_posted = datetime.fromtimestamp(
+                    job_data["createdAt"] / 1000, tz=timezone.utc
+                ).replace(tzinfo=None)
+            except (ValueError, TypeError, OSError):
                 pass
 
         # Apply URL

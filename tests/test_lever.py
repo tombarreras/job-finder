@@ -129,7 +129,7 @@ def test_parse_lever_date_from_timestamp():
         "text": "Engineer",
         "applyUrl": "https://example.com/abc123",
         "url": "https://example.com/abc123",
-        "createdAt": 1721476800000,  # 2026-07-20 12:00:00 UTC
+        "createdAt": 1784548800000,  # 2026-07-20 12:00:00 UTC
     }
 
     job = collector._parse_job(job_data)

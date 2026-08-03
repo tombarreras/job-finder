@@ -108,21 +108,31 @@ class ReportGenerator:
             f"{run_stats.get('failed_sources', 0)} failed"
         )
 
-        # Categorize by status and category
-        new_software_qa = [
-            j for j in jobs
-            if j.status == JobStatus.NEW and j.category in ["Software development", "QA and testing"]
-        ]
-        new_austin = [
-            j for j in jobs
-            if j.status == JobStatus.NEW
-            and j.category not in ["Software development", "QA and testing"]
-            and "Austin" in j.location or "Round Rock" in j.location or "Texas" in j.location
-        ]
-        new_trades = [
-            j for j in jobs
-            if j.status == JobStatus.NEW and j.category in ["Electrical trade", "HVAC trade", "Construction and general labor"]
-        ]
+        # Categorize by status and category. Every new job lands in exactly one
+        # bucket, so nothing is silently dropped from the report.
+        software_qa_categories = {"Software development", "QA and testing"}
+        trades_categories = {
+            "Electrical trade",
+            "HVAC trade",
+            "Construction and general labor",
+        }
+        austin_markers = ("Austin", "Round Rock", "Georgetown", "Texas", "TX")
+
+        new_software_qa: list[NormalizedJob] = []
+        new_trades: list[NormalizedJob] = []
+        new_austin: list[NormalizedJob] = []
+        new_other: list[NormalizedJob] = []
+
+        for job in (j for j in jobs if j.status == JobStatus.NEW):
+            if job.category in software_qa_categories:
+                new_software_qa.append(job)
+            elif job.category in trades_categories:
+                new_trades.append(job)
+            elif any(marker in job.location for marker in austin_markers):
+                new_austin.append(job)
+            else:
+                new_other.append(job)
+
         changed = [j for j in jobs if j.status == JobStatus.CHANGED]
         expired = [j for j in jobs if j.status == JobStatus.EXPIRED]
 
@@ -143,6 +153,15 @@ class ReportGenerator:
             lines.append(f"\n## New Trades & Immediate Income Jobs ({len(new_trades)})")
             for job in new_trades:
                 lines.extend(self._format_job_md(job))
+
+        # Everything else that is new. Listed compactly rather than omitted, so
+        # the report never understates what was collected.
+        if new_other:
+            lines.append(f"\n## Other New Jobs ({len(new_other)})")
+            for job in new_other:
+                lines.append(
+                    f"- [{job.title}]({job.apply_url}) — {job.company_name}, {job.location}"
+                )
 
         # Changed jobs
         if changed:

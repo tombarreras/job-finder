@@ -149,6 +149,28 @@ class JSONLDCollector(JobCollector):
 
         return blocks
 
+    @staticmethod
+    def _format_address(addr: Any) -> str:
+        """Format a schema.org PostalAddress as 'City, Region[, Country]'."""
+        if not addr:
+            return ""
+        if not isinstance(addr, dict):
+            return str(addr)
+
+        parts = []
+        if addr.get("addressLocality"):
+            parts.append(addr["addressLocality"])
+        if addr.get("addressRegion"):
+            parts.append(addr["addressRegion"])
+        # Domestic postings are the norm; "Austin, TX, USA" is noise.
+        country = addr.get("addressCountry") or ""
+        if isinstance(country, dict):
+            country = country.get("name") or ""
+        if country and str(country).upper() not in {"US", "USA", "UNITED STATES"}:
+            parts.append(str(country))
+
+        return ", ".join(parts)
+
     def _parse_job(self, job_data: dict[str, Any]) -> NormalizedJob | None:
         """Parse a JobPosting schema."""
         title = job_data.get("title", "")
@@ -170,35 +192,14 @@ class JSONLDCollector(JobCollector):
 
         # Location
         location = "Remote"
-        if job_data.get("jobLocation"):
-            location_data = job_data["jobLocation"]
-            if isinstance(location_data, dict):
-                parts = []
-                if location_data.get("address"):
-                    addr = location_data["address"]
-                    if isinstance(addr, dict):
-                        if addr.get("addressLocality"):
-                            parts.append(addr["addressLocality"])
-                        if addr.get("addressRegion"):
-                            parts.append(addr["addressRegion"])
-                        if addr.get("addressCountry"):
-                            parts.append(addr["addressCountry"])
-                    else:
-                        parts.append(str(addr))
-                if parts:
-                    location = ", ".join(parts)
-            elif isinstance(location_data, list) and location_data:
-                # Multiple locations - use first
-                if isinstance(location_data[0], dict):
-                    parts = []
-                    addr = location_data[0].get("address", {})
-                    if isinstance(addr, dict):
-                        if addr.get("addressLocality"):
-                            parts.append(addr["addressLocality"])
-                        if addr.get("addressRegion"):
-                            parts.append(addr["addressRegion"])
-                    if parts:
-                        location = ", ".join(parts)
+        location_data = job_data.get("jobLocation")
+        if isinstance(location_data, list) and location_data:
+            # Multiple locations - use first
+            location_data = location_data[0]
+        if isinstance(location_data, dict):
+            formatted = self._format_address(location_data.get("address"))
+            if formatted:
+                location = formatted
 
         # Description
         description = ""
@@ -221,12 +222,13 @@ class JSONLDCollector(JobCollector):
         # Remote status
         remote_status = RemoteStatus.UNKNOWN
         if job_data.get("jobLocationType"):
-            loc_type = job_data["jobLocationType"].lower()
-            if "remote" in loc_type:
+            # schema.org uses TELECOMMUTE/ON_SITE; separators vary by publisher.
+            loc_type = str(job_data["jobLocationType"]).lower().replace("_", " ").replace("-", " ")
+            if "remote" in loc_type or "telecommute" in loc_type:
                 remote_status = RemoteStatus.REMOTE
             elif "hybrid" in loc_type:
                 remote_status = RemoteStatus.HYBRID
-            elif "on-site" in loc_type or "on site" in loc_type:
+            elif "on site" in loc_type:
                 remote_status = RemoteStatus.ON_SITE
 
         # Apply URL
