@@ -44,6 +44,13 @@ TENANT_URL_RE = re.compile(
 # externalPath ends with the requisition id, e.g. "..._JR104602", "..._R-10065705".
 REQ_ID_IN_PATH_RE = re.compile(r"_([A-Za-z]{1,5}-?\d[\w-]*)$")
 
+# Workday collapses multi-site postings to "2 Locations" / "3 Locations",
+# which discards the location entirely.
+MULTI_LOCATION_RE = re.compile(r"^\d+\s+locations?$", re.IGNORECASE)
+
+# externalPath is "/job/<Location-Slug>/<Title>_<ReqId>".
+LOCATION_IN_PATH_RE = re.compile(r"^/job/([^/]+)/")
+
 
 class WorkdayCollector(JobCollector):
     """Collects from Workday-hosted career sites via the public CXS API."""
@@ -323,7 +330,10 @@ class WorkdayCollector(JobCollector):
             match = REQ_ID_IN_PATH_RE.search(external_path)
             job_id = match.group(1) if match else external_path
 
-        location = detail.get("location") or summary.get("locationsText") or "Unknown"
+        location = detail.get("location") or summary.get("locationsText") or ""
+        # "2 Locations" carries no information; the path keeps the primary site.
+        if not location or MULTI_LOCATION_RE.match(location.strip()):
+            location = self._location_from_path(external_path) or location or "Unknown"
 
         description = ""
         if detail.get("jobDescription"):
@@ -367,6 +377,17 @@ class WorkdayCollector(JobCollector):
                 else {}
             ),
         )
+
+    @staticmethod
+    def _location_from_path(external_path: str) -> str:
+        """Recover the primary location from the job path slug.
+
+        Used when Workday reports "2 Locations" instead of a place name.
+        """
+        match = LOCATION_IN_PATH_RE.match(external_path or "")
+        if not match:
+            return ""
+        return match.group(1).replace("-", " ").strip()
 
     @staticmethod
     def _parse_employment_type(time_type: str, title: str) -> EmploymentType:

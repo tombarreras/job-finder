@@ -173,7 +173,12 @@ def send_email(args: argparse.Namespace) -> int:
 
     from job_collector.email_delivery import EmailDelivery
 
+    import os
+
+    from job_collector.database import JobDatabase
+
     output_dir = Path(args.output_directory or "output")
+    db_path = Path(args.database or "data/jobs.db")
 
     try:
         json_report = output_dir / "latest_jobs.json"
@@ -183,16 +188,27 @@ def send_email(args: argparse.Namespace) -> int:
             print("No report found. Run 'report' command first.")
             return 1
 
-        # Read report content
-        with open(md_report) as f:
-            report_content = f.read()
+        report_content = md_report.read_text(encoding="utf-8")
 
-        # Send email
+        # Real counts, rather than the zeros this previously always reported.
+        counts: Counter[str] = Counter()
+        if db_path.exists():
+            counts = Counter(job.status.value for job in JobDatabase(db_path).get_recent_jobs())
+
+        to_address = os.getenv("JOB_EMAIL_TO", "tombarreras@gmail.com")
+        new_count = counts.get("new", 0)
+
         email = EmailDelivery()
         success = email.send_report(
-            to_address="tombarreras@gmail.com",
-            subject="Christopher Job Collector Report",
-            body=EmailDelivery.format_report_email(0, 0, 0, 0, report_content),
+            to_address=to_address,
+            subject=f"Christopher Job Collector -- {new_count} new jobs",
+            body=EmailDelivery.format_report_email(
+                new_count=new_count,
+                changed_count=counts.get("changed", 0),
+                expired_count=counts.get("expired", 0),
+                failed_sources=0,
+                markdown_content=report_content,
+            ),
             json_report_path=json_report,
         )
 

@@ -1,5 +1,6 @@
 """Configuration loading and validation."""
 import logging
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
@@ -61,6 +62,49 @@ class SearchRule:
 
 
 @dataclass
+class LocationFilter:
+    """Drops postings whose location is outside the areas being searched.
+
+    Employers on shared ATS tenants publish globally, so a single Workday site
+    returns Bangalore and Penang alongside Austin. Without this, the great
+    majority of collected jobs are irrelevant.
+    """
+
+    enabled: bool = False
+    include: list[str] = field(default_factory=list)
+    exclude: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        """Precompile patterns."""
+        self._include_re = [self._compile(p) for p in self.include]
+        self._exclude_re = [self._compile(p) for p in self.exclude]
+
+    @staticmethod
+    def _compile(pattern: str) -> re.Pattern[str]:
+        """Compile a pattern with word boundaries where they make sense.
+
+        Plain substring matching is too loose: "Buda" (a Texas suburb) would
+        otherwise match "Budapest". Boundaries are only added on alphanumeric
+        edges so patterns like ", TX" still work.
+        """
+        escaped = re.escape(pattern)
+        prefix = r"\b" if pattern[:1].isalnum() else ""
+        suffix = r"\b" if pattern[-1:].isalnum() else ""
+        return re.compile(f"{prefix}{escaped}{suffix}", re.IGNORECASE)
+
+    def matches(self, location: str) -> bool:
+        """Return True when the job should be kept."""
+        if not self.enabled or not self._include_re:
+            return True
+
+        haystack = location or ""
+        # Exclusions win: "Remote" alone would otherwise keep "Remote (Germany)".
+        if any(rx.search(haystack) for rx in self._exclude_re):
+            return False
+        return any(rx.search(haystack) for rx in self._include_re)
+
+
+@dataclass
 class JobCollectorConfig:
     """Main configuration for the job collector."""
     companies: list[CompanyConfig] = field(default_factory=list)
@@ -68,6 +112,7 @@ class JobCollectorConfig:
     database_path: str = "data/jobs.db"
     output_directory: str = "output"
     log_level: str = "INFO"
+    location_filter: "LocationFilter" = field(default_factory=lambda: LocationFilter())
 
     @classmethod
     def from_yaml(cls, config_dir: Path | str) -> "JobCollectorConfig":
@@ -124,9 +169,16 @@ class JobCollectorConfig:
                 exclude_titles=rule_dict.get("exclude_titles", []),
             )
 
+        filter_config = companies_config.get("location_filter") or {}
+
         return cls(
             companies=companies,
             search_rules=search_rules,
+            location_filter=LocationFilter(
+                enabled=filter_config.get("enabled", False),
+                include=filter_config.get("include", []),
+                exclude=filter_config.get("exclude", []),
+            ),
             database_path=companies_config.get("database_path", "data/jobs.db"),
             output_directory=companies_config.get("output_directory", "output"),
             log_level=companies_config.get("log_level", "INFO"),

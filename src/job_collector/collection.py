@@ -101,6 +101,19 @@ class JobCollectionOrchestrator:
                 else:
                     self.database.update_source_status(source_id, "success")
 
+        # Drop out-of-area postings before state detection, so they never enter
+        # the database or count as "expired" later.
+        location_filter = self.config.location_filter
+        if location_filter.enabled:
+            kept = [j for j in all_jobs if location_filter.matches(j.location)]
+            dropped = len(all_jobs) - len(kept)
+            if dropped:
+                logger.info(
+                    f"Location filter kept {len(kept)} of {len(all_jobs)} jobs "
+                    f"({dropped} outside the configured areas)"
+                )
+            all_jobs = kept
+
         # Detect job status changes against the previous run's state, then
         # persist. Expired entries are placeholders, not real postings.
         all_jobs = self._detect_status_changes(all_jobs)

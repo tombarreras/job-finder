@@ -2,6 +2,87 @@ database_path: data/jobs.db
 output_directory: output
 log_level: INFO
 
+# Employers share global ATS tenants, so a single Workday site returns
+# Bangalore and Penang alongside Austin. A job is kept when its location
+# contains any pattern below (case-insensitive).
+#
+# To search nationwide for software/QA roles, add markers like "CA", "WA",
+# "New York", or set enabled: false to keep everything.
+location_filter:
+  enabled: true
+  include:
+    - Austin
+    - Round Rock
+    - Pflugerville
+    - Cedar Park
+    - Leander
+    - Georgetown
+    - Taylor
+    - Hutto
+    - Buda
+    - Kyle
+    - Bastrop
+    - San Marcos
+    - Wimberley
+    - Texas
+    - ", TX"
+    - Remote
+  # Checked first and wins over `include`. Needed because bare "Remote" would
+  # otherwise keep "Remote (Germany)" and friends.
+  exclude:
+    - Argentina
+    - Australia
+    - Austria
+    - Belgium
+    - Brazil
+    - Bulgaria
+    - Canada
+    - Chile
+    - China
+    - Colombia
+    - Czechia
+    - Denmark
+    - Dubai
+    - Egypt
+    - Finland
+    - France
+    - Germany
+    - Hong Kong
+    - Hungary
+    - India
+    - Indonesia
+    - Ireland
+    - Israel
+    - Italy
+    - Japan
+    - Malaysia
+    - Mexico
+    - Netherlands
+    - New Zealand
+    - Norway
+    - Pakistan
+    - Peru
+    - Philippines
+    - Poland
+    - Portugal
+    - Romania
+    - Saudi Arabia
+    - Serbia
+    - Singapore
+    - Slovakia
+    - South Africa
+    - South Korea
+    - Spain
+    - Sweden
+    - Switzerland
+    - Taiwan
+    - Thailand
+    - Turkey
+    - UAE
+    - United Arab Emirates
+    - United Kingdom
+    - Vietnam
+
 # Job Source Registry
 # See: job_source_registry_instructions.md for complete list and validation procedure
 #
