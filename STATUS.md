@@ -150,13 +150,29 @@ Idempotent — no false "changed" churn, so the daily email will not cry wolf.
 Reports render at 5.9 MB JSON / 150 KB Markdown with real descriptions and
 apply links.
 
-**Test suite:** 97 passed, 15 failed, 16 errors — against a baseline of 63
-passed, 20 failed, 16 errors. Verified failure-set to failure-set: **zero
-regressions**, 5 pre-existing failures fixed. 29 new tests in `test_workday.py`.
+**Test suite: 112 passed, 0 failed, 0 errors** — from a baseline of 63 passed,
+20 failed, 16 errors. 29 of the new tests are in `test_workday.py`.
 
-Remaining failures are in `ashby` / `lever` / `jsonld` / `deduplication` /
-`normalization` (untouched here). The 16 errors are Windows sqlite file-locking
-in test teardown, environmental.
+Fixing the suite surfaced more real bugs than test defects:
+
+- `deduplication.py` was entirely non-functional — it referenced a
+  `job.source_id` the model never defined, so every call raised.
+- The Markdown report **silently dropped new jobs**. An operator-precedence bug
+  (`A and B and C or D or E` parses as `(A and B and C) or D or E`) meant any
+  new job matching neither a category nor a location marker vanished. This is
+  why the first live run showed only 210 of 3,215 jobs. Now every new job lands
+  in exactly one bucket, with an "Other New Jobs" catch-all.
+- `lever.py` parsed epoch timestamps in local time, so a UTC CI runner produced
+  different dates than a local machine from identical input.
+- `with sqlite3.connect(...)` manages the transaction but **does not close the
+  connection**. All 13 call sites leaked a handle (~3,200 per collection run)
+  and held Windows file locks — the cause of all 16 test errors. There is now a
+  `database.connect()` helper that commits and closes; use it for any new
+  SQLite access.
+
+Two genuine test defects: a Lever timestamp whose comment claimed 2026 but whose
+value was 2024, and two ashby tests that contradicted each other on identical
+input (so the suite could never have gone fully green).
 
 ---
 
@@ -166,9 +182,12 @@ in test teardown, environmental.
    Electric, State of Texas. This is the main **trades** coverage; the trades
    employers are the worst-covered category and where electrician's-helper and
    construction-helper roles concentrate.
-2. **Expand `search_rules.yaml`** — the Markdown report currently produces only
-   one section ("New Austin-Area Technical Jobs"). Trades categories are needed
-   for helper/apprentice/electrician roles to surface properly.
+2. **Populate job categories via `search_rules.yaml`** — `NormalizedJob.category`
+   is never set by any classifier, so nothing reaches the "Software & QA" or
+   "Trades & Immediate Income" report sections; everything falls through to
+   location matching or the "Other New Jobs" catch-all. Wiring up classification
+   is what makes the daily email actually readable, and what surfaces
+   helper/apprentice/electrician roles as their own section.
 3. **NeoGov / GovernmentJobs collector** — Travis County, City of Round Rock, and
    probably the other municipalities once their URLs are fixed. Strong source of
    helper-grade public-works roles.
