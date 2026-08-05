@@ -128,6 +128,8 @@ def test_parse_job_falls_back_to_external_path_for_id():
     [
         ("/job/Austin-Energy/Electrician-Helper_JR104610", "JR104610"),
         ("/job/Catania/Senior-Principal-HW-SW-Co-Design-Lead_R-10065705", "R-10065705"),
+        # UT Austin separates the prefix with an underscore.
+        ("/job/AUSTIN-TX/Lead-Data-Engineer_R_00043560", "R_00043560"),
     ],
 )
 def test_job_id_extracted_from_external_path(external_path, expected):
@@ -136,6 +138,45 @@ def test_job_id_extracted_from_external_path(external_path, expected):
     summary = {"title": "Role", "externalPath": external_path, "bulletFields": []}
 
     assert collector._parse_job(summary, None).source_job_id == expected
+
+
+def test_job_id_is_identical_with_and_without_detail():
+    """Identity must not depend on whether the optional detail fetch ran.
+
+    Detail fetches are capped and can fail; if the id changed with them, the
+    same posting would look expired and newly created on alternating runs.
+    """
+    collector = make_collector()
+    summary = {
+        "title": "Lead Data Engineer",
+        "externalPath": "/job/AUSTIN-TX/Lead-Data-Engineer_R_00043560",
+        "locationsText": "AUSTIN, TX",
+        "bulletFields": [],
+    }
+    detail = {"jobReqId": "R_00043560", "title": "Lead Data Engineer", "location": "UT MAIN CAMPUS"}
+
+    without_detail = collector._parse_job(summary, None)
+    with_detail = collector._parse_job(summary, detail)
+
+    assert without_detail.source_job_id == with_detail.source_job_id == "R_00043560"
+
+
+def test_location_is_identical_with_and_without_detail():
+    """Location decides filtering, so it must not depend on the detail fetch."""
+    collector = make_collector()
+    summary = {
+        "title": "Role",
+        "externalPath": "/job/AUSTIN-TX/Role_R_00043560",
+        "locationsText": "AUSTIN, TX",
+        "bulletFields": [],
+    }
+    detail = {"location": "UT MAIN CAMPUS", "title": "Role"}
+
+    assert (
+        collector._parse_job(summary, None).location
+        == collector._parse_job(summary, detail).location
+        == "AUSTIN, TX"
+    )
 
 
 def test_ignores_non_requisition_bullet_fields():

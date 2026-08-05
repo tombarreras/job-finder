@@ -27,6 +27,13 @@ location_filter:
     - Texas
     - ", TX"
     - Remote
+    # Employers name sites rather than cities. These are all in the Austin area
+    # and would otherwise be dropped -- UT alone loses ~113 jobs without them.
+    - UT MAIN CAMPUS
+    - PICKLE RESEARCH CAMPUS
+    - J J PICKLE RESEARCH CAMPUS
+    - ONE TEXAS CENTER
+    - MARINE SCIENCE INSTITUTE
   # Checked first and wins over `include`. Needed because bare "Remote" would
   # otherwise keep "Remote (Germany)" and friends.
   exclude:

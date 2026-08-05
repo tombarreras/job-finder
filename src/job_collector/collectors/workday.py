@@ -14,6 +14,7 @@ Workday employer.
 """
 import asyncio
 import logging
+import random
 import re
 from datetime import datetime, timedelta
 from typing import Any, Optional
@@ -41,8 +42,16 @@ TENANT_URL_RE = re.compile(
     re.IGNORECASE,
 )
 
-# externalPath ends with the requisition id, e.g. "..._JR104602", "..._R-10065705".
-REQ_ID_IN_PATH_RE = re.compile(r"_([A-Za-z]{1,5}-?\d[\w-]*)$")
+# externalPath ends with the requisition id: "..._JR104602", "..._R-10065705",
+# "..._R_00034505". The separator between prefix and digits varies by tenant.
+REQ_ID_IN_PATH_RE = re.compile(r"_([A-Za-z]{1,5}[-_]?\d[\w-]*)$")
+
+# Workday rate-limits bursty clients; a single 429 mid-pagination would
+# otherwise abort an entire source for the day.
+RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
+MAX_ATTEMPTS = 5
+INITIAL_BACKOFF_SECONDS = 2.0
+MAX_BACKOFF_SECONDS = 30.0
 
 # Workday collapses multi-site postings to "2 Locations" / "3 Locations",
 # which discards the location entirely.
@@ -221,6 +230,45 @@ class WorkdayCollector(JobCollector):
 
         return jobs
 
+    async def _request(
+        self,
+        client: httpx.AsyncClient,
+        method: str,
+        url: str,
+        **kwargs: Any,
+    ) -> httpx.Response:
+        """Issue a request, retrying transient failures with backoff.
+
+        Workday returns 429 under load. Without this, one throttled page drops
+        the whole source for that run, and its postings then look expired.
+        """
+        backoff = INITIAL_BACKOFF_SECONDS
+
+        for attempt in range(1, MAX_ATTEMPTS + 1):
+            response = await client.request(method, url, **kwargs)
+
+            if response.status_code not in RETRY_STATUSES or attempt == MAX_ATTEMPTS:
+                response.raise_for_status()
+                return response
+
+            # Honour Retry-After when the server sends it.
+            delay = backoff
+            retry_after = response.headers.get("Retry-After", "")
+            if retry_after.strip().isdigit():
+                delay = float(retry_after.strip())
+
+            # Jitter so concurrent sources do not retry in lockstep.
+            delay = min(delay, MAX_BACKOFF_SECONDS) * (1 + random.random() * 0.25)
+            logger.warning(
+                f"{self.company_id}: HTTP {response.status_code} from Workday, "
+                f"retrying in {delay:.1f}s (attempt {attempt}/{MAX_ATTEMPTS})"
+            )
+            await asyncio.sleep(delay)
+            backoff = min(backoff * 2, MAX_BACKOFF_SECONDS)
+
+        # Unreachable: the final attempt either returns or raises above.
+        raise RuntimeError("retry loop exited unexpectedly")
+
     async def _search(
         self,
         client: httpx.AsyncClient,
@@ -240,8 +288,7 @@ class WorkdayCollector(JobCollector):
                 "offset": offset,
                 "searchText": search_text,
             }
-            response = await client.post(f"{self.api_url}/jobs", json=payload)
-            response.raise_for_status()
+            response = await self._request(client, "POST", f"{self.api_url}/jobs", json=payload)
             data = response.json()
 
             if total is None:
@@ -294,14 +341,15 @@ class WorkdayCollector(JobCollector):
             logger.warning(message)
             warnings.append(message)
 
-        semaphore = asyncio.Semaphore(int(parsing.get("detail_concurrency", 5)))
+        # Kept low deliberately: 13 sources run concurrently, and Workday
+        # throttles the aggregate. Detail fetches are the bulk of the traffic.
+        semaphore = asyncio.Semaphore(int(parsing.get("detail_concurrency", 3)))
         details: dict[str, dict[str, Any]] = {}
 
         async def fetch(path: str) -> None:
             async with semaphore:
                 try:
-                    response = await client.get(f"{self.api_url}{path}")
-                    response.raise_for_status()
+                    response = await self._request(client, "GET", f"{self.api_url}{path}")
                     info = response.json().get("jobPostingInfo")
                     if info:
                         details[path] = info
@@ -322,18 +370,32 @@ class WorkdayCollector(JobCollector):
         external_path = summary.get("externalPath", "")
         title = detail.get("title") or summary.get("title", "")
 
-        # Prefer the requisition id, which survives edits to the title. Do not
-        # trust bulletFields[0]: some tenants put a label like "Spotlight Job"
-        # there, which would collapse every such posting onto one id.
-        job_id = detail.get("jobReqId") or ""
-        if not job_id and external_path:
+        # Identity must come from the summary alone. Detail fetches are capped
+        # and can fail, so keying off jobReqId gave the same posting a different
+        # id depending on whether its detail happened to be fetched -- the old
+        # id then looked expired and the new one looked new, every run.
+        #
+        # Not bulletFields[0] either: some tenants put a label like
+        # "Spotlight Job" there, collapsing every such posting onto one id.
+        job_id = ""
+        if external_path:
             match = REQ_ID_IN_PATH_RE.search(external_path)
             job_id = match.group(1) if match else external_path
+        if not job_id:
+            job_id = detail.get("jobReqId") or ""
 
-        location = detail.get("location") or summary.get("locationsText") or ""
+        # Summary first, for the same reason as the id: the location decides
+        # whether the location filter keeps a posting, so letting it depend on
+        # an optional detail fetch makes jobs flicker in and out of the report.
+        location = summary.get("locationsText") or ""
         # "2 Locations" carries no information; the path keeps the primary site.
         if not location or MULTI_LOCATION_RE.match(location.strip()):
-            location = self._location_from_path(external_path) or location or "Unknown"
+            location = (
+                self._location_from_path(external_path)
+                or detail.get("location")
+                or location
+                or "Unknown"
+            )
 
         description = ""
         if detail.get("jobDescription"):
