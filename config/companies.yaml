@@ -86,9 +86,23 @@ location_filter:
     - Thailand
     - Turkey
     - UAE
+    - Ukraine
     - United Arab Emirates
     - United Kingdom
     - Vietnam
+    # Offshore engineering/manufacturing sites seen in these employers' feeds
+    - Belarus
+    - Costa Rica
+    - Croatia
+    - Estonia
+    - Greece
+    - Latvia
+    - Lithuania
+    - Morocco
+    - Russia
+    - Slovenia
+    - Sri Lanka
+    - Tunisia
 
 # Job Source Registry
 # See: job_source_registry_instructions.md for complete list and validation procedure
@@ -329,19 +343,22 @@ companies:
 
   - id: flex
     name: Flex
-    enabled: false
+    enabled: true
     priority: medium
     categories:
       - manufacturing
       - qa
     locations:
+      - Austin, TX
       - Remote
-    career_page_url: https://flex.com/careers/united-states
+    career_page_url: https://flextronics.wd1.myworkdayjobs.com/Careers
     sources:
-      - type: jsonld
-        site_url: https://flex.com/careers/united-states
+      - type: workday
+        tenant: flextronics
+        wd_host: wd1
+        site: Careers
         timeout_seconds: 30
-    notes: "Electronics manufacturing services"
+    notes: "Workday CXS API - verified 2026-08-05. Tenant is 'flextronics', not 'flex'."
 
   # Priority 3: Government, Education, and Utilities
 
