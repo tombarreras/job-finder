@@ -88,36 +88,25 @@ class GreenhouseCollector(JobCollector):
             )
 
     async def _fetch_jobs(self, client: httpx.AsyncClient) -> list[NormalizedJob]:
-        """Fetch all jobs from Greenhouse API."""
+        """Fetch all jobs from the Greenhouse boards API.
+
+        The endpoint returns the whole board in one response and ignores
+        `page`/`per_page`. Requesting successive pages returned an identical
+        full list every time, so the previous loop -- which stopped only once a
+        page came back short -- never terminated.
+        """
+        url = f"{self.BASE_URL}/boards/{self.source_config.board_token}/jobs?content=true"
+
+        response = await client.get(url)
+        response.raise_for_status()
+        data = response.json()
+
         jobs = []
-        page = 0
-        per_page = 50
-
-        while True:
-            url = (
-                f"{self.BASE_URL}/boards/{self.source_config.board_token}/jobs"
-                f"?content=true&page={page}&per_page={per_page}"
-            )
-
-            response = await client.get(url)
-            response.raise_for_status()
-            data = response.json()
-
-            if not data.get("jobs"):
-                break
-
-            for job_data in data["jobs"]:
-                try:
-                    job = self._parse_job(job_data)
-                    jobs.append(job)
-                except Exception as e:
-                    logger.warning(f"Failed to parse job {job_data.get('id')}: {e}")
-
-            # Check if there are more pages
-            if len(data["jobs"]) < per_page:
-                break
-
-            page += 1
+        for job_data in data.get("jobs") or []:
+            try:
+                jobs.append(self._parse_job(job_data))
+            except Exception as e:
+                logger.warning(f"Failed to parse job {job_data.get('id')}: {e}")
 
         return jobs
 

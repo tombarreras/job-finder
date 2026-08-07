@@ -24,8 +24,10 @@ location_filter:
     - Bastrop
     - San Marcos
     - Wimberley
-    - Texas
-    - ", TX"
+    # NOTE: deliberately no blanket "Texas" or ", TX" entry. Those matched the
+    # whole state -- SpaceX's Starbase (268 jobs, ~350 miles away), McGregor,
+    # and Flex's Dallas postings all qualified. The city list above is the
+    # Austin-metro definition; add a city here to widen the commute radius.
     - Remote
     # Employers name sites rather than cities. These are all in the Austin area
     # and would otherwise be dropped -- UT alone loses ~113 jobs without them.
@@ -625,6 +627,43 @@ companies:
             - qa engineer
             - test engineer
     notes: "Workday CXS API - verified 2026-08-02"
+
+  - id: natera
+    name: Natera
+    enabled: true
+    priority: medium
+    categories:
+      - laboratory
+      - qa
+      - software
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/natera
+    sources:
+      - type: greenhouse
+        board_token: natera
+        timeout_seconds: 30
+    notes: "Greenhouse boards API - verified 2026-08-06 (226 jobs, 21 Austin)"
+
+  - id: spacex
+    name: SpaceX
+    enabled: true
+    priority: medium
+    categories:
+      - software
+      - qa
+      - manufacturing
+      - trades
+    locations:
+      - Austin, TX
+      - Bastrop, TX
+    career_page_url: https://boards.greenhouse.io/spacex
+    sources:
+      - type: greenhouse
+        board_token: spacex
+        timeout_seconds: 30
+    notes: "Greenhouse boards API - verified 2026-08-06 (2139 jobs, 31 Austin).
+      Census wrongly recorded SpaceX as a custom site."
 
   - id: example-greenhouse
     name: Example Company (Greenhouse - Template)
