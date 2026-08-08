@@ -154,6 +154,7 @@ class EmailDelivery:
         markdown_content: str = "",
         timestamp: datetime | None = None,
         jobs: "list | None" = None,
+        watches: "list | None" = None,
         total_active: int = 0,
         max_jobs: int = 400,
         max_bytes: int | None = None,
@@ -203,13 +204,45 @@ class EmailDelivery:
                 f"records_omitted: {len(jobs) - len(included)} ({reason}; "
                 f"ordered new-first, so omitted records are the lowest priority)"
             )
+        watches = watches or []
+        changed_watches = [w for w in watches if w.status in {"changed", "new", "error"}]
+        lines.append(f"watches_checked: {len(watches)}")
+        lines.append(f"watches_changed: {sum(1 for w in watches if w.status == 'changed')}")
         lines.append("")
+
+        # Watches first: an apprenticeship window opening is time-critical and
+        # must not fall below a job-record cap.
+        for watch in changed_watches:
+            lines.extend(EmailDelivery._format_watch_record(watch))
 
         for record in rendered:
             lines.extend(record)
 
         lines.append("=== END REPORT ===")
         return "\n".join(lines)
+
+    @staticmethod
+    def _format_watch_record(watch: Any) -> list[str]:
+        """Render one watched page as a delimited record."""
+        added = (watch.added_text or "").strip()
+        if len(added) > EmailDelivery.MAX_DESCRIPTION_CHARS:
+            added = added[: EmailDelivery.MAX_DESCRIPTION_CHARS] + " [truncated]"
+        added = re.sub(r"(?mi)^\s*END WATCH\s*$", "END_WATCH", added)
+
+        return [
+            "WATCH",
+            f"id: {watch.id}",
+            f"name: {re.sub(r'\\s+', ' ', watch.name or '').strip()}",
+            f"url: {watch.url}",
+            f"status: {watch.status}",
+            f"keywords_found: {', '.join(watch.keywords_found or [])}",
+            f"last_changed: {(watch.last_changed_at or '')[:10]}",
+            f"error: {re.sub(r'\\s+', ' ', watch.error or '').strip()}",
+            "added_text:",
+            added,
+            "END WATCH",
+            "",
+        ]
 
     @staticmethod
     def _format_job_record(job: Any) -> list[str]:

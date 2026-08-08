@@ -103,6 +103,22 @@ class JobDatabase:
             """)
 
             cursor.execute("""
+                CREATE TABLE IF NOT EXISTS page_watches (
+                    id TEXT PRIMARY KEY,
+                    url TEXT NOT NULL,
+                    name TEXT,
+                    content_hash TEXT,
+                    content_text TEXT,
+                    first_seen_at TEXT,
+                    last_checked_at TEXT,
+                    last_changed_at TEXT,
+                    last_status TEXT,
+                    last_error TEXT,
+                    last_added_text TEXT
+                )
+            """)
+
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS report_runs (
                     run_id TEXT PRIMARY KEY,
                     start_time TEXT NOT NULL,

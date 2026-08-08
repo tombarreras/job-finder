@@ -167,6 +167,76 @@ def report(args: argparse.Namespace) -> int:
         return 1
 
 
+
+def _load_watch_results(config_dir, db_path):
+    """Read the last recorded state of each watched page, without re-fetching."""
+    from job_collector.page_watch import WatchResult, load_watches
+    from job_collector.database import connect
+
+    results = []
+    try:
+        watches = load_watches(config_dir)
+        if not watches or not db_path.exists():
+            return []
+        with connect(db_path) as conn:
+            for w in watches:
+                row = conn.execute(
+                    "SELECT last_status, last_changed_at, last_error, last_added_text FROM page_watches WHERE id = ?",
+                    (w.id,),
+                ).fetchone()
+                if not row:
+                    continue
+                status, changed_at, error, added = row
+                added = added or ""
+                found = [k for k in w.keywords if k.lower() in added.lower()]
+                results.append(WatchResult(
+                    id=w.id, name=w.name, url=w.url,
+                    status="changed" if status == "changed" else ("error" if status == "error" else "unchanged"),
+                    last_changed_at=changed_at, error=error or "",
+                    added_text=added, keywords_found=found,
+                ))
+    except Exception:
+        logger.exception("Could not load watch results")
+    return results
+
+
+def watch_pages(args: argparse.Namespace) -> int:
+    """Check watched pages for changes."""
+    import asyncio
+    from pathlib import Path
+
+    from job_collector.database import JobDatabase
+    from job_collector.page_watch import PageWatcher, load_watches
+
+    config_dir = Path(args.config_dir or "config")
+    db_path = Path(args.database or "data/jobs.db")
+
+    try:
+        watches = load_watches(config_dir)
+        if not watches:
+            print("No watches configured")
+            return 0
+
+        watcher = PageWatcher(JobDatabase(db_path))
+        results = asyncio.run(watcher.check_all(watches))
+
+        for r in results:
+            marker = {"changed": "CHANGED", "new": "baseline", "unchanged": "unchanged",
+                      "error": "ERROR"}[r.status]
+            extra = f" [{', '.join(r.keywords_found)}]" if r.keywords_found else ""
+            print(f"  {marker:10} {r.name}{extra}")
+            if r.error:
+                print(f"             {r.error[:100]}")
+
+        changed = sum(1 for r in results if r.status == "changed")
+        print(f"Checked {len(results)} pages, {changed} changed")
+        return 0
+    except Exception as e:
+        logger.exception("Page watch failed")
+        print(f"Error: {e}")
+        return 1
+
+
 def send_email(args: argparse.Namespace) -> int:
     """Send email report."""
     from pathlib import Path
@@ -186,6 +256,10 @@ def send_email(args: argparse.Namespace) -> int:
         if not json_report.exists():
             print("No report found. Run 'report' command first.")
             return 1
+
+        # Watched pages ride along in the same email; a change there is
+        # time-critical and is emitted ahead of the job records.
+        watch_results = _load_watch_results(Path(args.config_dir or "config"), db_path)
 
         # Real counts, rather than the zeros this previously always reported.
         all_jobs = JobDatabase(db_path).get_recent_jobs() if db_path.exists() else []
@@ -227,6 +301,7 @@ def send_email(args: argparse.Namespace) -> int:
                         expired_count=counts.get("expired", 0),
                         failed_sources=0,
                         jobs=batch,
+                        watches=watch_results if i == 1 else [],
                         total_active=len(all_jobs),
                         part=i,
                         total_parts=len(batches),
@@ -247,6 +322,7 @@ def send_email(args: argparse.Namespace) -> int:
                 expired_count=counts.get("expired", 0),
                 failed_sources=0,
                 jobs=reportable,
+                watches=watch_results,
                 total_active=len(all_jobs),
             ),
             json_report_path=json_report,
@@ -335,6 +411,8 @@ def main() -> int:
     subparsers.add_parser("report", help="Generate reports")
 
     # send-email command
+    subparsers.add_parser("watch-pages", help="Check watched pages for changes")
+
     email_parser = subparsers.add_parser("send-email", help="Send email report")
     email_parser.add_argument(
         "--include",
@@ -376,6 +454,8 @@ def main() -> int:
         return collect(args)
     elif args.command == "report":
         return report(args)
+    elif args.command == "watch-pages":
+        return watch_pages(args)
     elif args.command == "send-email":
         return send_email(args)
     elif args.command == "discover-sources":

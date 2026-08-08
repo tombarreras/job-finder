@@ -88,6 +88,13 @@ jobs:
         env:
           LOG_LEVEL: INFO
 
+      # Apprenticeship programmes publish application windows, not postings.
+      # A change here is time-critical, so it must not block the report either.
+      - name: Check watched pages
+        id: watch
+        continue-on-error: true
+        run: python -m job_collector --config config watch-pages
+
       - name: Generate reports
         id: report
         run: python -m job_collector --config config --output output report

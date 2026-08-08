@@ -1,0 +1,52 @@
+# Pages watched for change rather than scraped for postings.
+#
+# Union halls and apprenticeship programmes publish application *windows*, not
+# job listings, so there is nothing for a collector to parse. Detecting that the
+# page changed is the signal: an application period opening is easy to miss by
+# months otherwise.
+#
+# `keywords` are reported when they appear in newly added text. They do not
+# filter anything out -- a change is always reported.
+
+watches:
+  - id: austin-eta-apprentice
+    name: Austin Electrical Training Alliance - Apprentice Program
+    url: https://austineta.org/apprentice-program-2/
+    keywords:
+      - accepting applications
+      - application period
+      - apply now
+      - open enrollment
+      - deadline
+      - now accepting
+
+  - id: ibew-520-apprenticeship
+    name: IBEW Local 520 - Apprenticeship
+    url: https://www.ibew520.org/join/apprenticeship
+    keywords:
+      - accepting applications
+      - application period
+      - apply now
+      - open enrollment
+      - deadline
+      - now accepting
+
+  - id: centex-iec-apprenticeship
+    name: CenTex IEC - Electrical Apprenticeship
+    url: https://centexiec.com/apprenticeship/
+    keywords:
+      - accepting applications
+      - enroll
+      - enrollment
+      - apply
+      - deadline
+      - class starts
+
+  - id: centex-iec-home
+    name: CenTex IEC - Announcements
+    url: https://centexiec.com/
+    keywords:
+      - accepting applications
+      - enrollment
+      - apply
+      - deadline
