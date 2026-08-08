@@ -194,12 +194,50 @@ def send_email(args: argparse.Namespace) -> int:
         to_address = os.getenv("JOB_EMAIL_TO", "tombarreras@gmail.com")
         new_count = counts.get("new", 0)
 
-        # Send the jobs that changed state this run. Unchanged postings are
-        # already known downstream and would swamp the body.
-        reportable = [j for j in all_jobs if j.status.value in {"new", "changed"}]
-        reportable.sort(key=lambda j: (j.status.value != "new", j.company_name, j.title))
+        if getattr(args, "description_chars", None):
+            EmailDelivery.MAX_DESCRIPTION_CHARS = int(args.description_chars)
 
+        if getattr(args, "include", "delta") == "all":
+            # Backfill: the whole active inventory, not just this run's delta.
+            reportable = sorted(all_jobs, key=lambda j: (j.company_name, j.title))
+        else:
+            # Send the jobs that changed state this run. Unchanged postings are
+            # already known downstream and would swamp the body.
+            reportable = [j for j in all_jobs if j.status.value in {"new", "changed"}]
+            reportable.sort(key=lambda j: (j.status.value != "new", j.company_name, j.title))
+
+        max_emails = int(getattr(args, "max_emails", 1) or 1)
         email = EmailDelivery()
+
+        if max_emails > 1:
+            batches = EmailDelivery.split_into_batches(reportable)[:max_emails]
+            covered = sum(len(b) for b in batches)
+            if covered < len(reportable):
+                print(
+                    f"Warning: {len(reportable) - covered} jobs will not be sent "
+                    f"(max-emails={max_emails}); raise it to cover them."
+                )
+            messages = [
+                (
+                    f"Christopher Job Collector -- part {i} of {len(batches)} "
+                    f"({len(batch)} jobs)",
+                    EmailDelivery.format_report_email(
+                        new_count=new_count,
+                        changed_count=counts.get("changed", 0),
+                        expired_count=counts.get("expired", 0),
+                        failed_sources=0,
+                        jobs=batch,
+                        total_active=len(all_jobs),
+                        part=i,
+                        total_parts=len(batches),
+                    ),
+                )
+                for i, batch in enumerate(batches, start=1)
+            ]
+            sent = email.send_reports(to_address, messages)
+            print(f"Sent {sent} of {len(messages)} messages covering {covered} jobs")
+            return 0 if sent == len(messages) else 1
+
         success = email.send_report(
             to_address=to_address,
             subject=f"Christopher Job Collector -- {new_count} new jobs",
@@ -297,7 +335,28 @@ def main() -> int:
     subparsers.add_parser("report", help="Generate reports")
 
     # send-email command
-    subparsers.add_parser("send-email", help="Send email report")
+    email_parser = subparsers.add_parser("send-email", help="Send email report")
+    email_parser.add_argument(
+        "--include",
+        choices=["delta", "all"],
+        default="delta",
+        help="'delta' sends this run's new/changed jobs (default); "
+             "'all' backfills the entire active inventory",
+    )
+    email_parser.add_argument(
+        "--max-emails",
+        type=int,
+        default=1,
+        help="Split across up to this many messages; >1 sends them over a "
+             "single SMTP session (default 1)",
+    )
+    email_parser.add_argument(
+        "--description-chars",
+        type=int,
+        default=None,
+        help="Override the per-job description cap; lower values fit more "
+             "jobs per message",
+    )
 
     # discover-sources command
     subparsers.add_parser(

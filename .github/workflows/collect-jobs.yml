@@ -5,6 +5,18 @@ on:
     # 07:00 UTC daily = 2 AM Central (CDT) / 1 AM Central (CST), Austin time.
     - cron: '0 7 * * *'
   workflow_dispatch:
+    inputs:
+      email_include:
+        description: "delta = this run's new/changed jobs; all = backfill everything active"
+        type: choice
+        options: ["delta", "all"]
+        default: "delta"
+      email_max_emails:
+        description: "Split the report across up to this many messages"
+        default: "1"
+      email_description_chars:
+        description: "Per-job description cap in characters (blank = default 2000)"
+        default: ""
 
 concurrency:
   group: job-collection
@@ -83,7 +95,11 @@ jobs:
       - name: Send email report
         id: email
         continue-on-error: true
-        run: python -m job_collector --config config --output output send-email
+        run: |
+          python -m job_collector --config config --output output send-email \
+            --include "${{ inputs.email_include || 'delta' }}" \
+            --max-emails "${{ inputs.email_max_emails || '1' }}" \
+            ${{ inputs.email_description_chars && format('--description-chars {0}', inputs.email_description_chars) || '' }}
         env:
           JOB_EMAIL_SMTP_HOST: smtp.gmail.com
           JOB_EMAIL_SMTP_PORT: 587

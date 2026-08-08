@@ -90,6 +90,62 @@ class EmailDelivery:
     MAX_BODY_BYTES = 90_000
 
     @staticmethod
+    def split_into_batches(
+        jobs: list,
+        max_bytes: int | None = None,
+        max_jobs: int = 400,
+    ) -> list[list]:
+        """Pack jobs into batches that each fit one email body."""
+        budget = EmailDelivery.MAX_BODY_BYTES if max_bytes is None else max_bytes
+        # Leave room for the header, which is small but not free.
+        budget = max(budget - 2000, 1000)
+
+        batches: list[list] = []
+        current: list = []
+        used = 0
+
+        for job in jobs:
+            size = len("\n".join(EmailDelivery._format_job_record(job)).encode("utf-8")) + 1
+            if current and (used + size > budget or len(current) >= max_jobs):
+                batches.append(current)
+                current, used = [], 0
+            current.append(job)
+            used += size
+
+        if current:
+            batches.append(current)
+        return batches
+
+    def send_reports(self, to_address: str, messages: list[tuple]) -> int:
+        """Send several messages over one SMTP session.
+
+        Used for backfills. Re-logging in per message risks tripping the
+        provider's rate limits.
+        """
+        if not all([self.smtp_host, self.smtp_username, self.smtp_password, self.from_address]):
+            logger.error("Email configuration incomplete")
+            return 0
+
+        sent = 0
+        try:
+            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+                server.starttls()
+                server.login(self.smtp_username, self.smtp_password)
+                for subject, body in messages:
+                    msg = MIMEMultipart("alternative")
+                    msg["Subject"] = subject
+                    msg["From"] = self.from_address
+                    msg["To"] = to_address
+                    msg.attach(MIMEText(body, "plain", "utf-8"))
+                    server.send_message(msg)
+                    sent += 1
+                    logger.info(f"Sent {subject}")
+        except Exception as e:
+            logger.exception(f"Batch send stopped after {sent} message(s): {e}")
+
+        return sent
+
+    @staticmethod
     def format_report_email(
         new_count: int,
         changed_count: int,
@@ -101,6 +157,8 @@ class EmailDelivery:
         total_active: int = 0,
         max_jobs: int = 400,
         max_bytes: int | None = None,
+        part: int = 1,
+        total_parts: int = 1,
     ) -> str:
         """Format the email body as a header plus one record per job.
 
@@ -134,6 +192,7 @@ class EmailDelivery:
             f"changed: {changed_count}",
             f"expired: {expired_count}",
             f"failed_sources: {failed_sources}",
+            f"part: {part} of {total_parts}",
             f"records_included: {len(included)}",
         ]
         if len(jobs) > len(included):
