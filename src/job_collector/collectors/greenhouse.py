@@ -116,12 +116,21 @@ class GreenhouseCollector(JobCollector):
         title = job_data.get("title", "")
         company_name = job_data.get("company", {}).get("name", self.company_id)
 
-        # Extract locations
-        locations = []
-        for office in job_data.get("offices", []):
-            if office.get("name"):
-                locations.append(office["name"])
-        location = ", ".join(locations) if locations else "Remote"
+        # The posting's own location is authoritative. `offices[].name` is the
+        # office's *name* ("Tecovas HQ", "AlertMedia HQ"), not a place, so
+        # relying on it made those employers look out-of-area and dropped them.
+        location = (job_data.get("location") or {}).get("name") or ""
+
+        if not location:
+            # Fall back to the offices, preferring their address over their name.
+            parts = [
+                office.get("location") or office.get("name")
+                for office in job_data.get("offices") or []
+                if office.get("location") or office.get("name")
+            ]
+            location = ", ".join(parts)
+
+        location = location or "Remote"
 
         # Extract departments
         departments = []

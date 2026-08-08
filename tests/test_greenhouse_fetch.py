@@ -70,6 +70,50 @@ async def test_does_not_loop_when_api_ignores_pagination():
     assert calls["n"] == 1
 
 
+def parse_one(job_data: dict):
+    from job_collector.collectors.greenhouse import GreenhouseCollector
+    from job_collector.config import SourceConfig
+    return GreenhouseCollector("acme", SourceConfig(type="greenhouse", board_token="acme"))._parse_job(job_data)
+
+
+def test_location_comes_from_the_posting_not_the_office_name():
+    """`offices[].name` is the office's name, not a place.
+
+    Tecovas and AlertMedia name their offices "Tecovas HQ" / "AlertMedia HQ",
+    so using that as the location made every posting look out-of-area.
+    """
+    job = parse_one({
+        "id": 1,
+        "title": "Assistant Merchant",
+        "absolute_url": "https://example.com/1",
+        "location": {"name": "Austin, TX"},
+        "offices": [{"name": "Tecovas HQ", "location": "801 Barton Springs Rd. Austin, TX 78704"}],
+    })
+
+    assert job.location == "Austin, TX"
+
+
+def test_falls_back_to_office_address_then_name():
+    """Without a posting location, an address beats an office nickname."""
+    with_address = parse_one({
+        "id": 2, "title": "Role", "absolute_url": "https://example.com/2",
+        "offices": [{"name": "AlertMedia HQ", "location": "Austin, Texas, United States"}],
+    })
+    name_only = parse_one({
+        "id": 3, "title": "Role", "absolute_url": "https://example.com/3",
+        "offices": [{"name": "San Francisco, CA"}],
+    })
+
+    assert with_address.location == "Austin, Texas, United States"
+    assert name_only.location == "San Francisco, CA"
+
+
+def test_no_location_information_falls_back_to_remote():
+    job = parse_one({"id": 4, "title": "Role", "absolute_url": "https://example.com/4"})
+
+    assert job.location == "Remote"
+
+
 @pytest.mark.asyncio
 async def test_empty_board_returns_no_jobs():
     """An empty board is not an error."""

@@ -668,6 +668,161 @@ companies:
     notes: "Greenhouse boards API - verified 2026-08-06 (2139 jobs, 31 Austin).
       Census wrongly recorded SpaceX as a custom site."
 
+  - id: tecovas
+    name: Tecovas
+    enabled: true
+    priority: medium
+    categories:
+      - retail
+      - software
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/tecovas
+    sources:
+      - type: greenhouse
+        board_token: tecovas
+        timeout_seconds: 30
+    notes: "Greenhouse boards API - verified 2026-08-08 (28 Austin jobs)"
+
+  - id: disco
+    name: DISCO
+    enabled: true
+    priority: medium
+    categories:
+      - software
+      - qa
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/disco
+    sources:
+      - type: greenhouse
+        board_token: disco
+        timeout_seconds: 30
+    notes: "Greenhouse boards API - verified 2026-08-08 (11 Austin jobs)"
+
+  - id: alertmedia
+    name: AlertMedia
+    enabled: true
+    priority: medium
+    categories:
+      - software
+      - qa
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/alertmedia
+    sources:
+      - type: greenhouse
+        board_token: alertmedia
+        timeout_seconds: 30
+    notes: "Greenhouse boards API - verified 2026-08-08 (10 Austin jobs)"
+
+  - id: cloudflare
+    name: Cloudflare
+    enabled: true
+    priority: medium
+    categories:
+      - software
+      - qa
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/cloudflare
+    sources:
+      - type: greenhouse
+        board_token: cloudflare
+        timeout_seconds: 30
+    notes: "Greenhouse boards API - verified 2026-08-08 (4 Austin jobs)"
+
+  - id: selffinancial
+    name: Self Financial
+    enabled: true
+    priority: medium
+    categories:
+      - software
+      - qa
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/selffinancial
+    sources:
+      - type: greenhouse
+        board_token: selffinancial
+        timeout_seconds: 30
+    notes: "Greenhouse boards API - verified 2026-08-08 (3 Austin jobs)"
+
+  - id: osano
+    name: Osano
+    enabled: true
+    priority: medium
+    categories:
+      - software
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/osano
+    sources:
+      - type: greenhouse
+        board_token: osano
+        timeout_seconds: 30
+    notes: "Greenhouse boards API - verified 2026-08-08 (2 Austin jobs)"
+
+  - id: homeward
+    name: Homeward
+    enabled: true
+    priority: medium
+    categories:
+      - software
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/homeward
+    sources:
+      - type: greenhouse
+        board_token: homeward
+        timeout_seconds: 30
+    notes: "Greenhouse boards API - verified 2026-08-08 (2 Austin jobs)"
+
+  - id: aceable
+    name: Aceable
+    enabled: true
+    priority: medium
+    categories:
+      - software
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/aceable
+    sources:
+      - type: greenhouse
+        board_token: aceable
+        timeout_seconds: 30
+    notes: "Greenhouse boards API - verified 2026-08-08 (1 Austin jobs)"
+
+  - id: modernize
+    name: Modernize
+    enabled: true
+    priority: medium
+    categories:
+      - software
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/modernize
+    sources:
+      - type: greenhouse
+        board_token: modernize
+        timeout_seconds: 30
+    notes: "Greenhouse boards API - verified 2026-08-08 (1 Austin jobs)"
+
+  - id: zenbusiness
+    name: ZenBusiness
+    enabled: true
+    priority: medium
+    categories:
+      - software
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/zenbusiness
+    sources:
+      - type: greenhouse
+        board_token: zenbusiness
+        timeout_seconds: 30
+    notes: "Greenhouse boards API - verified 2026-08-08 (1 Austin jobs)"
+
   - id: example-greenhouse
     name: Example Company (Greenhouse - Template)
     enabled: false
