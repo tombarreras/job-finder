@@ -24,6 +24,9 @@ location_filter:
     - Bastrop
     - San Marcos
     - Wimberley
+    # Outside the Austin metro, included for relocation flexibility.
+    - Dallas
+    - Starbase
     # NOTE: deliberately no blanket "Texas" or ", TX" entry. Those matched the
     # whole state -- SpaceX's Starbase (268 jobs, ~350 miles away), McGregor,
     # and Flex's Dallas postings all qualified. The city list above is the
