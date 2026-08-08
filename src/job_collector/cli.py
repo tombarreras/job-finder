@@ -182,21 +182,22 @@ def send_email(args: argparse.Namespace) -> int:
 
     try:
         json_report = output_dir / "latest_jobs.json"
-        md_report = output_dir / "latest_report.md"
 
         if not json_report.exists():
             print("No report found. Run 'report' command first.")
             return 1
 
-        report_content = md_report.read_text(encoding="utf-8")
-
         # Real counts, rather than the zeros this previously always reported.
-        counts: Counter[str] = Counter()
-        if db_path.exists():
-            counts = Counter(job.status.value for job in JobDatabase(db_path).get_recent_jobs())
+        all_jobs = JobDatabase(db_path).get_recent_jobs() if db_path.exists() else []
+        counts: Counter[str] = Counter(job.status.value for job in all_jobs)
 
         to_address = os.getenv("JOB_EMAIL_TO", "tombarreras@gmail.com")
         new_count = counts.get("new", 0)
+
+        # Send the jobs that changed state this run. Unchanged postings are
+        # already known downstream and would swamp the body.
+        reportable = [j for j in all_jobs if j.status.value in {"new", "changed"}]
+        reportable.sort(key=lambda j: (j.status.value != "new", j.company_name, j.title))
 
         email = EmailDelivery()
         success = email.send_report(
@@ -207,9 +208,11 @@ def send_email(args: argparse.Namespace) -> int:
                 changed_count=counts.get("changed", 0),
                 expired_count=counts.get("expired", 0),
                 failed_sources=0,
-                markdown_content=report_content,
+                jobs=reportable,
+                total_active=len(all_jobs),
             ),
             json_report_path=json_report,
+            attach_json=True,
         )
 
         if success:

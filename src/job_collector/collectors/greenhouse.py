@@ -135,15 +135,18 @@ class GreenhouseCollector(JobCollector):
         if job_data.get("content"):
             description = clean_html(job_data["content"])
 
-        # Dates
+        # Dates. The boards API sends "first_published"; "published_at" is
+        # always null there, so reading only that left every job undated.
         date_posted = None
-        if job_data.get("published_at"):
+        for field in ("first_published", "published_at", "updated_at"):
+            value = job_data.get(field)
+            if not value:
+                continue
             try:
-                date_posted = datetime.fromisoformat(
-                    job_data["published_at"].replace("Z", "+00:00")
-                )
+                date_posted = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+                break
             except (ValueError, AttributeError):
-                pass
+                continue
 
         # Determine remote status
         remote_status = RemoteStatus.UNKNOWN

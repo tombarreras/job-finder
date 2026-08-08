@@ -219,16 +219,39 @@ class WorkdayCollector(JobCollector):
         if not summaries:
             return []
 
-        details = await self._fetch_details(client, list(summaries), warnings)
+        # Drop out-of-area postings before spending one detail request each.
+        # Location comes from the summary, so this costs nothing, and it means
+        # the detail budget covers the jobs we actually keep -- previously the
+        # cap was exhausted on postings that were about to be discarded, which
+        # left kept jobs with no description.
+        wanted = {
+            path: summary
+            for path, summary in summaries.items()
+            if self._keep_location(self._summary_location(path, summary))
+        }
+        if len(wanted) < len(summaries):
+            logger.info(
+                f"{self.company_id}: {len(wanted)} of {len(summaries)} postings "
+                f"are in-area; fetching details for those only"
+            )
+
+        details = await self._fetch_details(client, list(wanted), warnings)
 
         jobs = []
-        for path, summary in summaries.items():
+        for path, summary in wanted.items():
             try:
                 jobs.append(self._parse_job(summary, details.get(path)))
             except Exception as e:
                 logger.warning(f"Failed to parse job {path}: {e}")
 
         return jobs
+
+    def _summary_location(self, external_path: str, summary: dict[str, Any]) -> str:
+        """Location derivable from the summary alone, matching _parse_job."""
+        location = summary.get("locationsText") or ""
+        if not location or MULTI_LOCATION_RE.match(location.strip()):
+            location = self._location_from_path(external_path) or location or "Unknown"
+        return location
 
     async def _request(
         self,
@@ -331,7 +354,9 @@ class WorkdayCollector(JobCollector):
         # Sort before truncating: the description feeds the content hash, so if
         # the capped subset shifted with the API's result ordering, unchanged
         # postings would flip hashes between runs and report as "changed".
-        max_details = int(parsing.get("max_detail_fetches", 300))
+        # Raised now that details are only fetched for in-area postings; the
+        # cap is a runaway guard rather than a budget we expect to hit.
+        max_details = int(parsing.get("max_detail_fetches", 1500))
         targets = sorted(paths)[:max_details]
         if len(paths) > max_details:
             message = (
@@ -384,18 +409,11 @@ class WorkdayCollector(JobCollector):
         if not job_id:
             job_id = detail.get("jobReqId") or ""
 
-        # Summary first, for the same reason as the id: the location decides
-        # whether the location filter keeps a posting, so letting it depend on
-        # an optional detail fetch makes jobs flicker in and out of the report.
-        location = summary.get("locationsText") or ""
-        # "2 Locations" carries no information; the path keeps the primary site.
-        if not location or MULTI_LOCATION_RE.match(location.strip()):
-            location = (
-                self._location_from_path(external_path)
-                or detail.get("location")
-                or location
-                or "Unknown"
-            )
+        # Summary only, for the same reason as the id: the location decides
+        # whether the filter keeps a posting, so letting it depend on an
+        # optional detail fetch makes jobs flicker in and out of the report.
+        # This is the same helper used to pre-filter, so the two cannot diverge.
+        location = self._summary_location(external_path, summary)
 
         description = ""
         if detail.get("jobDescription"):

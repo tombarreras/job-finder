@@ -66,6 +66,9 @@ class JobCollectionOrchestrator:
                     continue
 
                 collector = collector_class(company.id, source)
+                # Let collectors that pay per-job costs skip out-of-area work.
+                if self.config.location_filter.enabled:
+                    collector.location_filter = self.config.location_filter.matches
                 tasks.append(self._collect_from_source(collector, company.id, source))
 
         # Run all collectors concurrently
