@@ -328,6 +328,13 @@ companies:
             - quality assurance
             - qa engineer
             - test engineer
+            - electrician
+            - electrical technician
+            - maintenance technician
+            - facilities technician
+            - equipment technician
+            - helper
+            - apprentice
     notes: "Semiconductor company with enterprise ATS"
 
   - id: amd
@@ -531,6 +538,13 @@ companies:
             - quality assurance
             - qa engineer
             - test engineer
+            - electrician
+            - electrical technician
+            - maintenance technician
+            - facilities technician
+            - equipment technician
+            - helper
+            - apprentice
     notes: "Workday CXS API - verified 2026-08-02"
 
   - id: intel
@@ -558,6 +572,13 @@ companies:
             - quality assurance
             - qa engineer
             - test engineer
+            - electrician
+            - electrical technician
+            - maintenance technician
+            - facilities technician
+            - equipment technician
+            - helper
+            - apprentice
     notes: "Workday CXS API - verified 2026-08-02"
 
   - id: thermo-fisher-scientific
@@ -585,6 +606,13 @@ companies:
             - quality assurance
             - qa engineer
             - test engineer
+            - electrician
+            - electrical technician
+            - maintenance technician
+            - facilities technician
+            - equipment technician
+            - helper
+            - apprentice
     notes: "Workday CXS API - verified 2026-08-02"
 
   - id: capital-metro
@@ -629,6 +657,13 @@ companies:
             - quality assurance
             - qa engineer
             - test engineer
+            - electrician
+            - electrical technician
+            - maintenance technician
+            - facilities technician
+            - equipment technician
+            - helper
+            - apprentice
     notes: "Workday CXS API - verified 2026-08-02"
 
   - id: natera
