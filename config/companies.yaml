@@ -904,6 +904,462 @@ companies:
         timeout_seconds: 30
     notes: "Ashby public board API - verified 2026-08-08 (2 Austin jobs)"
 
+  - id: apptronik
+    name: Apptronik
+    enabled: true
+    priority: medium
+    categories:
+      - manufacturing
+      - software
+      - trades
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/apptronik
+    sources:
+      - type: greenhouse
+        board_token: apptronik
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (69 Austin-metro jobs)"
+
+  - id: mongodb
+    name: MongoDB
+    enabled: true
+    priority: medium
+    categories:
+      - software
+      - qa
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/mongodb
+    sources:
+      - type: greenhouse
+        board_token: mongodb
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (37 Austin-metro jobs)"
+
+  - id: carvana
+    name: Carvana
+    enabled: true
+    priority: medium
+    categories:
+      - automotive
+      - trades
+      - operations
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/carvana
+    sources:
+      - type: greenhouse
+        board_token: carvana
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (29 Austin-metro jobs)"
+
+  - id: coreweave
+    name: CoreWeave
+    enabled: true
+    priority: medium
+    categories:
+      - software
+      - operations
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/coreweave
+    sources:
+      - type: greenhouse
+        board_token: coreweave
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (29 Austin-metro jobs)"
+
+  - id: solarwinds
+    name: SolarWinds
+    enabled: true
+    priority: medium
+    categories:
+      - software
+      - qa
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/solarwinds
+    sources:
+      - type: greenhouse
+        board_token: solarwinds
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (25 Austin-metro jobs)"
+
+  - id: flexport
+    name: Flexport
+    enabled: true
+    priority: medium
+    categories:
+      - logistics
+      - software
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/flexport
+    sources:
+      - type: greenhouse
+        board_token: flexport
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (18 Austin-metro jobs)"
+
+  - id: databricks
+    name: Databricks
+    enabled: true
+    priority: medium
+    categories:
+      - software
+      - qa
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/databricks
+    sources:
+      - type: greenhouse
+        board_token: databricks
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (16 Austin-metro jobs)"
+
+  - id: setpoint
+    name: Setpoint
+    enabled: true
+    priority: medium
+    categories:
+      - software
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/setpoint
+    sources:
+      - type: greenhouse
+        board_token: setpoint
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (16 Austin-metro jobs)"
+
+  - id: fivetran
+    name: Fivetran
+    enabled: true
+    priority: medium
+    categories:
+      - software
+      - qa
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/fivetran
+    sources:
+      - type: greenhouse
+        board_token: fivetran
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (15 Austin-metro jobs)"
+
+  - id: logicmonitor
+    name: LogicMonitor
+    enabled: true
+    priority: medium
+    categories:
+      - software
+      - qa
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/logicmonitor
+    sources:
+      - type: greenhouse
+        board_token: logicmonitor
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (13 Austin-metro jobs)"
+
+  - id: postman
+    name: Postman
+    enabled: true
+    priority: medium
+    categories:
+      - software
+      - qa
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/postman
+    sources:
+      - type: greenhouse
+        board_token: postman
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (6 Austin-metro jobs)"
+
+  - id: magicleap
+    name: Magic Leap
+    enabled: true
+    priority: medium
+    categories:
+      - software
+      - manufacturing
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/magicleap
+    sources:
+      - type: greenhouse
+        board_token: magicleap
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (5 Austin-metro jobs)"
+
+  - id: newrelic
+    name: New Relic
+    enabled: true
+    priority: medium
+    categories:
+      - software
+      - qa
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/newrelic
+    sources:
+      - type: greenhouse
+        board_token: newrelic
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (5 Austin-metro jobs)"
+
+  - id: axon
+    name: Axon
+    enabled: true
+    priority: medium
+    categories:
+      - software
+      - manufacturing
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/axon
+    sources:
+      - type: greenhouse
+        board_token: axon
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (4 Austin-metro jobs)"
+
+  - id: rubrik
+    name: Rubrik
+    enabled: true
+    priority: medium
+    categories:
+      - software
+      - qa
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/rubrik
+    sources:
+      - type: greenhouse
+        board_token: rubrik
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (4 Austin-metro jobs)"
+
+  - id: nextdoor
+    name: Nextdoor
+    enabled: true
+    priority: medium
+    categories:
+      - software
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/nextdoor
+    sources:
+      - type: greenhouse
+        board_token: nextdoor
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (3 Austin-metro jobs)"
+
+  - id: okta
+    name: Okta
+    enabled: true
+    priority: medium
+    categories:
+      - software
+      - qa
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/okta
+    sources:
+      - type: greenhouse
+        board_token: okta
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (3 Austin-metro jobs)"
+
+  - id: udemy
+    name: Udemy
+    enabled: true
+    priority: medium
+    categories:
+      - software
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/udemy
+    sources:
+      - type: greenhouse
+        board_token: udemy
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (3 Austin-metro jobs)"
+
+  - id: elastic
+    name: Elastic
+    enabled: true
+    priority: medium
+    categories:
+      - software
+      - qa
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/elastic
+    sources:
+      - type: greenhouse
+        board_token: elastic
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (2 Austin-metro jobs)"
+
+  - id: zoominfo
+    name: ZoomInfo
+    enabled: true
+    priority: medium
+    categories:
+      - software
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/zoominfo
+    sources:
+      - type: greenhouse
+        board_token: zoominfo
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (2 Austin-metro jobs)"
+
+  - id: enboarder
+    name: Enboarder
+    enabled: true
+    priority: medium
+    categories:
+      - software
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/enboarder
+    sources:
+      - type: greenhouse
+        board_token: enboarder
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (1 Austin-metro jobs)"
+
+  - id: fictiv
+    name: Fictiv
+    enabled: true
+    priority: medium
+    categories:
+      - manufacturing
+      - software
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/fictiv
+    sources:
+      - type: greenhouse
+        board_token: fictiv
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (1 Austin-metro jobs)"
+
+  - id: pendo
+    name: Pendo
+    enabled: true
+    priority: medium
+    categories:
+      - software
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/pendo
+    sources:
+      - type: greenhouse
+        board_token: pendo
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (1 Austin-metro jobs)"
+
+  - id: zenoti
+    name: Zenoti
+    enabled: true
+    priority: medium
+    categories:
+      - software
+    locations:
+      - Austin, TX
+    career_page_url: https://job-boards.greenhouse.io/zenoti
+    sources:
+      - type: greenhouse
+        board_token: zenoti
+        timeout_seconds: 30
+    notes: "Greenhouse public board API - verified 2026-08-08 (1 Austin-metro jobs)"
+
+  - id: bazaarvoice
+    name: Bazaarvoice
+    enabled: true
+    priority: medium
+    categories:
+      - software
+      - qa
+    locations:
+      - Austin, TX
+    career_page_url: https://jobs.lever.co/bazaarvoice
+    sources:
+      - type: lever
+        board_name: bazaarvoice
+        timeout_seconds: 30
+    notes: "Lever public board API - verified 2026-08-08 (6 Austin-metro jobs)"
+
+  - id: esper
+    name: Esper
+    enabled: true
+    priority: medium
+    categories:
+      - software
+    locations:
+      - Austin, TX
+    career_page_url: https://jobs.lever.co/esper
+    sources:
+      - type: lever
+        board_name: esper
+        timeout_seconds: 30
+    notes: "Lever public board API - verified 2026-08-08 (3 Austin-metro jobs)"
+
+  - id: miro
+    name: Miro
+    enabled: true
+    priority: medium
+    categories:
+      - software
+      - qa
+    locations:
+      - Austin, TX
+    career_page_url: https://jobs.ashbyhq.com/miro
+    sources:
+      - type: ashby
+        board_name: miro
+        timeout_seconds: 30
+    notes: "Ashby public board API - verified 2026-08-08 (12 Austin-metro jobs)"
+
+  - id: demandbase
+    name: Demandbase
+    enabled: true
+    priority: medium
+    categories:
+      - software
+    locations:
+      - Austin, TX
+    career_page_url: https://jobs.ashbyhq.com/demandbase
+    sources:
+      - type: ashby
+        board_name: demandbase
+        timeout_seconds: 30
+    notes: "Ashby public board API - verified 2026-08-08 (1 Austin-metro jobs)"
+
+  - id: upguard
+    name: UpGuard
+    enabled: true
+    priority: medium
+    categories:
+      - software
+    locations:
+      - Austin, TX
+    career_page_url: https://jobs.ashbyhq.com/upguard
+    sources:
+      - type: ashby
+        board_name: upguard
+        timeout_seconds: 30
+    notes: "Ashby public board API - verified 2026-08-08 (1 Austin-metro jobs)"
+
   - id: example-greenhouse
     name: Example Company (Greenhouse - Template)
     enabled: false
