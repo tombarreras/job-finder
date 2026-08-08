@@ -38,8 +38,14 @@ class EmailDelivery:
         body: str,
         json_report_path: Path | None = None,
         markdown_report_path: Path | None = None,
+        attach_json: bool = True,
     ) -> bool:
-        """Send email with report."""
+        """Send email with report.
+
+        The body carries the job records; the JSON attachment is supplementary,
+        since the downstream reader receives it as application/octet-stream and
+        cannot open it.
+        """
         if not all([self.smtp_host, self.smtp_username, self.smtp_password, self.from_address]):
             logger.error("Email configuration incomplete")
             return False
@@ -55,7 +61,7 @@ class EmailDelivery:
             msg.attach(MIMEText(body, "plain", "utf-8"))
 
             # Attach JSON report if available
-            if json_report_path and json_report_path.exists():
+            if attach_json and json_report_path and json_report_path.exists():
                 with open(json_report_path, "rb") as attachment:
                     part = MIMEApplication(attachment.read(), Name=json_report_path.name)
                     part["Content-Disposition"] = f'attachment; filename="{json_report_path.name}"'
