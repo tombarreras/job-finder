@@ -823,6 +823,87 @@ companies:
         timeout_seconds: 30
     notes: "Greenhouse boards API - verified 2026-08-08 (1 Austin jobs)"
 
+  - id: arrive-logistics
+    name: Arrive Logistics
+    enabled: true
+    priority: medium
+    categories:
+      - logistics
+      - software
+    locations:
+      - Austin, TX
+    career_page_url: https://jobs.lever.co/arrivelogistics
+    sources:
+      - type: lever
+        board_name: arrivelogistics
+        timeout_seconds: 30
+    notes: "Lever public board API - verified 2026-08-08 (23 Austin jobs)"
+
+  - id: everlywell
+    name: Everlywell
+    enabled: true
+    priority: medium
+    categories:
+      - laboratory
+      - software
+      - qa
+    locations:
+      - Austin, TX
+    career_page_url: https://jobs.lever.co/everlywell
+    sources:
+      - type: lever
+        board_name: everlywell
+        timeout_seconds: 30
+    notes: "Lever public board API - verified 2026-08-08 (11 Austin jobs)"
+
+  - id: zello
+    name: Zello
+    enabled: true
+    priority: medium
+    categories:
+      - software
+      - qa
+    locations:
+      - Austin, TX
+    career_page_url: https://jobs.ashbyhq.com/zello
+    sources:
+      - type: ashby
+        board_name: zello
+        timeout_seconds: 30
+    notes: "Ashby public board API - verified 2026-08-08 (10 Austin jobs)"
+
+  - id: literati
+    name: Literati
+    enabled: true
+    priority: medium
+    categories:
+      - retail
+      - operations
+    locations:
+      - Austin, TX
+    career_page_url: https://jobs.ashbyhq.com/literati
+    sources:
+      - type: ashby
+        board_name: literati
+        timeout_seconds: 30
+    notes: "Ashby public board API - verified 2026-08-08 (3 Austin jobs)"
+
+  - id: ontic
+    name: Ontic
+    enabled: true
+    priority: medium
+    categories:
+      - software
+      - qa
+    locations:
+      - Austin, TX
+    career_page_url: https://jobs.ashbyhq.com/ontic
+    sources:
+      - type: ashby
+        board_name: ontic
+        timeout_seconds: 30
+    notes: "Ashby public board API - verified 2026-08-08 (2 Austin jobs)"
+
   - id: example-greenhouse
     name: Example Company (Greenhouse - Template)
     enabled: false

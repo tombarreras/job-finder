@@ -86,33 +86,28 @@ class LeverCollector(JobCollector):
             )
 
     async def _fetch_jobs(self, client: httpx.AsyncClient) -> list[NormalizedJob]:
-        """Fetch all jobs from Lever API."""
+        """Fetch all postings from the Lever public API.
+
+        The endpoint returns a plain JSON array of every posting -- not a
+        paginated object. The previous implementation called `.get("data")` on
+        that list and raised AttributeError against every real board.
+        """
+        url = f"{self.BASE_URL}/postings/{self.source_config.board_name}?mode=json"
+
+        response = await client.get(url)
+        response.raise_for_status()
+        data = response.json()
+
+        if not isinstance(data, list):
+            logger.warning(f"Unexpected Lever payload: {type(data).__name__}")
+            return []
+
         jobs = []
-        offset = 0
-        limit = 100
-
-        while True:
-            url = f"{self.BASE_URL}/postings/{self.source_config.board_name}?offset={offset}&limit={limit}"
-
-            response = await client.get(url)
-            response.raise_for_status()
-            data = response.json()
-
-            if not data.get("data"):
-                break
-
-            for job_data in data["data"]:
-                try:
-                    job = self._parse_job(job_data)
-                    jobs.append(job)
-                except Exception as e:
-                    logger.warning(f"Failed to parse job {job_data.get('id')}: {e}")
-
-            # Check if there are more results
-            if len(data["data"]) < limit:
-                break
-
-            offset += limit
+        for job_data in data:
+            try:
+                jobs.append(self._parse_job(job_data))
+            except Exception as e:
+                logger.warning(f"Failed to parse job {job_data.get('id')}: {e}")
 
         return jobs
 
@@ -122,35 +117,38 @@ class LeverCollector(JobCollector):
         title = job_data.get("text", "")
         company_name = self.company_id
 
-        # Extract location
-        location = "Remote"
-        if job_data.get("locations"):
-            locations = [loc.get("name", "") for loc in job_data["locations"] if loc.get("name")]
-            if locations:
-                location = ", ".join(locations)
+        # Lever nests location, department, team and commitment under
+        # "categories", all as plain strings. There is no top-level "locations"
+        # list or dict-shaped department, which is what this used to expect.
+        categories = job_data.get("categories") or {}
 
-        # Extract description
-        description = ""
-        if job_data.get("description"):
+        all_locations = categories.get("allLocations") or []
+        location = categories.get("location") or (
+            ", ".join(all_locations) if all_locations else ""
+        ) or "Remote"
+
+        description = job_data.get("descriptionPlain") or ""
+        if not description and job_data.get("description"):
             description = clean_html(job_data["description"])
+        # "additionalPlain" carries requirements and benefits.
+        if job_data.get("additionalPlain"):
+            description = f"{description}\n\n{job_data['additionalPlain']}".strip()
 
-        # Extract department and team
-        department = ""
-        team = ""
-        # Lever exposes these as {"name": ...}; older payloads used "text".
-        if job_data.get("department"):
-            department = job_data["department"].get("name") or job_data["department"].get("text", "")
-        if job_data.get("team"):
-            team = job_data["team"].get("name") or job_data["team"].get("text", "")
+        department = categories.get("department") or ""
+        team = categories.get("team") or ""
 
-        # Employment type
-        employment_type = EmploymentType.FULL_TIME
-        if job_data.get("workplaceType"):
-            workplace = job_data["workplaceType"].lower()
-            if "part" in workplace:
-                employment_type = EmploymentType.PART_TIME
-            elif "contract" in workplace:
-                employment_type = EmploymentType.CONTRACT
+        # Employment type comes from "commitment" ("Full-time", "Part-time",
+        # "Contract", "Internship"), not from workplaceType.
+        employment_type = EmploymentType.UNKNOWN
+        commitment = (categories.get("commitment") or "").lower().replace("-", " ")
+        if "full time" in commitment:
+            employment_type = EmploymentType.FULL_TIME
+        elif "part time" in commitment:
+            employment_type = EmploymentType.PART_TIME
+        elif "contract" in commitment or "temporary" in commitment:
+            employment_type = EmploymentType.CONTRACT
+        elif "intern" in commitment or "apprentice" in commitment:
+            employment_type = EmploymentType.APPRENTICESHIP
 
         # Remote status
         remote_status = RemoteStatus.UNKNOWN
@@ -160,23 +158,23 @@ class LeverCollector(JobCollector):
                 remote_status = RemoteStatus.REMOTE
             elif "hybrid" in workplace:
                 remote_status = RemoteStatus.HYBRID
-            elif "office" in workplace or "on-site" in workplace:
+            elif "office" in workplace or "onsite" in workplace or "on-site" in workplace:
                 remote_status = RemoteStatus.ON_SITE
 
         # Dates
         date_posted = None
         if job_data.get("createdAt"):
             try:
-                # Lever sends epoch milliseconds UTC. Parsing in local time
-                # would yield a different date on a UTC CI runner than locally.
+                # Epoch milliseconds UTC, and sometimes sent as a string.
+                # Parsing in local time would yield a different date on a UTC
+                # CI runner than locally.
                 date_posted = datetime.fromtimestamp(
-                    job_data["createdAt"] / 1000, tz=timezone.utc
+                    int(job_data["createdAt"]) / 1000, tz=timezone.utc
                 ).replace(tzinfo=None)
             except (ValueError, TypeError, OSError):
                 pass
 
-        # Apply URL
-        apply_url = job_data.get("applyUrl", "")
+        apply_url = job_data.get("applyUrl") or job_data.get("hostedUrl") or ""
 
         # Calculate hash
         content_hash = calculate_content_hash(company_name, title, location, description, apply_url)
@@ -189,7 +187,7 @@ class LeverCollector(JobCollector):
             title=title,
             location=location,
             apply_url=apply_url,
-            source_url=job_data.get("url", apply_url),
+            source_url=job_data.get("hostedUrl") or apply_url,
             date_posted=date_posted,
             description_text=description,
             employment_type=employment_type,

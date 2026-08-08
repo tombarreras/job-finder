@@ -1,7 +1,12 @@
-"""Tests for Lever collector."""
-import json
-from pathlib import Path
+"""Tests for the Lever collector.
 
+Payloads mirror the real public API (api.lever.co/v0/postings/{board}?mode=json),
+which returns a flat list of postings with location, department, team and
+commitment nested under "categories" as plain strings. The previous fixtures
+described a shape Lever does not emit, which is why the collector passed its
+tests while failing against every real board.
+"""
+import httpx
 import pytest
 
 from job_collector.collectors.lever import LeverCollector
@@ -9,152 +14,136 @@ from job_collector.config import SourceConfig
 from job_collector.models import EmploymentType, RemoteStatus
 
 
-@pytest.fixture
-def lever_fixture():
-    """Load Lever API response fixture."""
-    fixture_path = Path(__file__).parent / "fixtures" / "lever_response.json"
-    with open(fixture_path) as f:
-        return json.load(f)
+def make_collector() -> LeverCollector:
+    return LeverCollector("arrivelogistics", SourceConfig(type="lever", board_name="arrivelogistics"))
 
 
-def test_parse_lever_job():
-    """Should parse Lever job correctly."""
-    source_config = SourceConfig(type="lever", board_name="example")
-    collector = LeverCollector("example-company", source_config)
-
-    job_data = {
-        "id": "abc123",
-        "text": "Full Stack Developer",
-        "description": "<p>Join our team</p>",
-        "applyUrl": "https://jobs.lever.co/example/abc123",
-        "url": "https://jobs.lever.co/example/full-stack-developer",
-        "createdAt": 1721476800000,
-        "locations": [{"name": "Austin, TX"}],
-        "department": {"name": "Engineering"},
-        "team": {"name": "Platform"},
-        "workplaceType": "Hybrid",
+def real_posting(**overrides) -> dict:
+    posting = {
+        "id": "16608370-2d00-4397-9ff6-ffae861ba067",
+        "text": "Accounts Receivable Specialist",
+        "categories": {
+            "commitment": "Full-time",
+            "department": "Finance",
+            "location": "Austin, TX",
+            "team": "Carrier and Customer Relations",
+            "allLocations": ["Austin, TX"],
+        },
+        "createdAt": "1677884732296",
+        "hostedUrl": "https://jobs.lever.co/arrivelogistics/16608370",
+        "applyUrl": "https://jobs.lever.co/arrivelogistics/16608370/apply",
+        "descriptionPlain": "Own the accounts receivable process.",
+        "additionalPlain": "Requirements: 2 years experience.",
+        "workplaceType": "onsite",
+        "country": "US",
     }
+    posting.update(overrides)
+    return posting
 
-    job = collector._parse_job(job_data)
+
+def test_parses_a_real_posting():
+    job = make_collector()._parse_job(real_posting())
 
     assert job.source_type == "lever"
-    assert job.source_job_id == "abc123"
-    assert job.title == "Full Stack Developer"
+    assert job.source_job_id == "16608370-2d00-4397-9ff6-ffae861ba067"
+    assert job.title == "Accounts Receivable Specialist"
     assert job.location == "Austin, TX"
-    assert job.remote_status == RemoteStatus.HYBRID
-    assert job.department == "Engineering"
-    assert job.team == "Platform"
-
-
-def test_parse_lever_remote_job():
-    """Should detect remote workplace type."""
-    source_config = SourceConfig(type="lever", board_name="example")
-    collector = LeverCollector("example-company", source_config)
-
-    job_data = {
-        "id": "def456",
-        "text": "Remote Engineer",
-        "description": "Work from anywhere",
-        "applyUrl": "https://jobs.lever.co/example/def456",
-        "url": "https://jobs.lever.co/example/remote-engineer",
-        "createdAt": 1721563200000,
-        "locations": [{"name": "Remote"}],
-        "workplaceType": "Remote",
-    }
-
-    job = collector._parse_job(job_data)
-
-    assert job.remote_status == RemoteStatus.REMOTE
-    assert job.location == "Remote"
-
-
-def test_parse_lever_employment_types():
-    """Should parse different employment types."""
-    source_config = SourceConfig(type="lever", board_name="example")
-    collector = LeverCollector("example-company", source_config)
-
-    # Full-time
-    job_data = {
-        "id": "1",
-        "text": "FT Job",
-        "applyUrl": "https://example.com/1",
-        "url": "https://example.com/1",
-        "createdAt": 1721476800000,
-        "workplaceType": "Full-time",
-    }
-    job = collector._parse_job(job_data)
+    assert job.department == "Finance"
+    assert job.team == "Carrier and Customer Relations"
     assert job.employment_type == EmploymentType.FULL_TIME
-
-    # Part-time
-    job_data["workplaceType"] = "Part-time"
-    job = collector._parse_job(job_data)
-    assert job.employment_type == EmploymentType.PART_TIME
-
-    # Contract
-    job_data["workplaceType"] = "Contract"
-    job = collector._parse_job(job_data)
-    assert job.employment_type == EmploymentType.CONTRACT
+    assert job.remote_status == RemoteStatus.ON_SITE
+    assert job.apply_url.endswith("/apply")
+    assert job.content_hash
 
 
-def test_parse_lever_multiple_locations():
-    """Should handle multiple locations."""
-    source_config = SourceConfig(type="lever", board_name="example")
-    collector = LeverCollector("example-company", source_config)
+def test_description_includes_the_additional_section():
+    """Requirements and benefits live in additionalPlain, not description."""
+    job = make_collector()._parse_job(real_posting())
 
-    job_data = {
-        "id": "xyz789",
-        "text": "Engineer",
-        "applyUrl": "https://jobs.lever.co/example/xyz789",
-        "url": "https://jobs.lever.co/example/engineer",
-        "createdAt": 1721476800000,
-        "locations": [
-            {"name": "San Francisco, CA"},
-            {"name": "New York, NY"},
-        ],
-    }
-
-    job = collector._parse_job(job_data)
-
-    # Should use first location
-    assert "San Francisco" in job.location
+    assert "accounts receivable process" in job.description_text
+    assert "2 years experience" in job.description_text
 
 
-def test_parse_lever_date_from_timestamp():
-    """Should convert Lever timestamp to datetime."""
-    source_config = SourceConfig(type="lever", board_name="example")
-    collector = LeverCollector("example-company", source_config)
+@pytest.mark.parametrize(
+    "commitment,expected",
+    [
+        ("Full-time", EmploymentType.FULL_TIME),
+        ("Part-time", EmploymentType.PART_TIME),
+        ("Contract", EmploymentType.CONTRACT),
+        ("Internship", EmploymentType.APPRENTICESHIP),
+        ("", EmploymentType.UNKNOWN),
+    ],
+)
+def test_employment_type_comes_from_commitment(commitment, expected):
+    """Employment type is categories.commitment, not workplaceType."""
+    posting = real_posting()
+    posting["categories"]["commitment"] = commitment
 
-    job_data = {
-        "id": "abc123",
-        "text": "Engineer",
-        "applyUrl": "https://example.com/abc123",
-        "url": "https://example.com/abc123",
-        "createdAt": 1784548800000,  # 2026-07-20 12:00:00 UTC
-    }
+    assert make_collector()._parse_job(posting).employment_type == expected
 
-    job = collector._parse_job(job_data)
+
+@pytest.mark.parametrize(
+    "workplace,expected",
+    [
+        ("onsite", RemoteStatus.ON_SITE),
+        ("hybrid", RemoteStatus.HYBRID),
+        ("remote", RemoteStatus.REMOTE),
+        ("", RemoteStatus.UNKNOWN),
+    ],
+)
+def test_remote_status_from_workplace_type(workplace, expected):
+    assert make_collector()._parse_job(
+        real_posting(workplaceType=workplace)
+    ).remote_status == expected
+
+
+def test_created_at_is_parsed_as_utc_from_a_string():
+    """Lever sends epoch milliseconds, sometimes as a string."""
+    job = make_collector()._parse_job(real_posting(createdAt="1677884732296"))
 
     assert job.date_posted is not None
-    assert job.date_posted.year == 2026
-    assert job.date_posted.month == 7
+    assert (job.date_posted.year, job.date_posted.month, job.date_posted.day) == (2023, 3, 3)
 
 
-def test_parse_lever_minimal_data():
-    """Should handle minimal job data."""
-    source_config = SourceConfig(type="lever", board_name="example")
-    collector = LeverCollector("example-company", source_config)
+def test_falls_back_to_all_locations_then_remote():
+    posting = real_posting()
+    posting["categories"] = {"allLocations": ["Austin, TX", "Dallas, TX"]}
+    assert "Dallas" in make_collector()._parse_job(posting).location
 
-    job_data = {
-        "id": "abc123",
-        "text": "Position",
-        "applyUrl": "https://jobs.lever.co/example/abc123",
-        "url": "https://jobs.lever.co/example/position",
-        "createdAt": 1721476800000,
-    }
+    posting["categories"] = {}
+    assert make_collector()._parse_job(posting).location == "Remote"
 
-    job = collector._parse_job(job_data)
 
-    assert job.source_job_id == "abc123"
-    assert job.title == "Position"
-    assert job.location == "Remote"
-    assert job.remote_status == RemoteStatus.UNKNOWN
+def test_falls_back_to_hosted_url_when_apply_url_missing():
+    job = make_collector()._parse_job(real_posting(applyUrl=""))
+
+    assert job.apply_url == "https://jobs.lever.co/arrivelogistics/16608370"
+
+
+@pytest.mark.asyncio
+async def test_fetch_handles_the_flat_list_response():
+    """The API returns a list; calling .get() on it used to raise."""
+    postings = [real_posting(id=f"id-{i}") for i in range(3)]
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return httpx.Response(200, json=postings)
+
+    collector = make_collector()
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        jobs = await collector._fetch_jobs(client)
+
+    assert len(jobs) == 3
+    assert calls["n"] == 1
+
+
+@pytest.mark.asyncio
+async def test_unexpected_payload_shape_returns_nothing():
+    """A dict response should be reported, not crash the source."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"data": []})
+
+    collector = make_collector()
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        assert await collector._fetch_jobs(client) == []

@@ -1,7 +1,12 @@
-"""Tests for Ashby collector."""
-import json
-from pathlib import Path
+"""Tests for the Ashby collector.
 
+Payloads mirror the real public API
+(api.ashbyhq.com/posting-api/job-board/{org}), where location, department and
+team are plain strings and employmentType/workplaceType are CamelCase. The
+previous fixtures described a city/state/country dict Ashby does not emit, and
+pointed at api.ashby.io, a host that does not resolve.
+"""
+import httpx
 import pytest
 
 from job_collector.collectors.ashby import AshbyCollector
@@ -9,236 +14,156 @@ from job_collector.config import SourceConfig
 from job_collector.models import EmploymentType, RemoteStatus
 
 
-@pytest.fixture
-def ashby_fixture():
-    """Load Ashby API response fixture."""
-    fixture_path = Path(__file__).parent / "fixtures" / "ashby_response.json"
-    with open(fixture_path) as f:
-        return json.load(f)
+def make_collector() -> AshbyCollector:
+    return AshbyCollector("zello", SourceConfig(type="ashby", board_name="zello"))
 
 
-def test_parse_ashby_job():
-    """Should parse Ashby job correctly."""
-    source_config = SourceConfig(type="ashby", board_name="example")
-    collector = AshbyCollector("example-company", source_config)
-
-    job_data = {
-        "id": "xy789",
-        "title": "Data Engineer",
-        "description": "<p>Build data infrastructure</p>",
-        "descriptionPlain": "Build data infrastructure",
-        "url": "https://jobs.ashby.co/example/data-engineer",
-        "applyUrl": "https://jobs.ashby.co/example/data-engineer/apply",
-        "createdAt": "2026-07-22T08:00:00Z",
-        "location": {
-            "city": "San Francisco",
-            "state": "CA",
-            "country": "USA",
-        },
-        "department": {"name": "Engineering"},
-        "team": {"name": "Data"},
-        "employmentType": "Full-time",
+def real_posting(**overrides) -> dict:
+    posting = {
+        "id": "3f58eb10-2752-493f-909f-19a9e82b1744",
+        "title": "Senior RevOps Analyst",
+        "location": "Austin, Texas",
+        "secondaryLocations": [],
+        "department": "RevOps",
+        "team": "RevOps",
+        "employmentType": "FullTime",
+        "publishedAt": "2026-07-28T22:42:44.683+00:00",
+        "jobUrl": "https://jobs.ashbyhq.com/zello/3f58eb10",
+        "applyUrl": "https://jobs.ashbyhq.com/zello/3f58eb10/application",
+        "descriptionPlain": "Own revenue operations reporting.",
+        "descriptionHtml": "<p>Own revenue operations reporting.</p>",
         "isRemote": False,
-        "isHybrid": True,
+        "isListed": True,
         "workplaceType": "Hybrid",
-        "compensation": {
-            "min": 120000,
-            "max": 160000,
-            "currency": "USD",
-            "period": "year",
-        },
     }
+    posting.update(overrides)
+    return posting
 
-    job = collector._parse_job(job_data)
+
+def test_parses_a_real_posting():
+    job = make_collector()._parse_job(real_posting())
 
     assert job.source_type == "ashby"
-    assert job.source_job_id == "xy789"
-    assert job.title == "Data Engineer"
-    assert job.location == "San Francisco, CA"
-    assert job.remote_status == RemoteStatus.HYBRID
+    assert job.source_job_id == "3f58eb10-2752-493f-909f-19a9e82b1744"
+    assert job.title == "Senior RevOps Analyst"
+    assert job.location == "Austin, Texas"
+    assert job.department == "RevOps"
+    assert job.team == "RevOps"
     assert job.employment_type == EmploymentType.FULL_TIME
-    assert job.salary_min == 120000
-    assert job.salary_max == 160000
-    assert job.salary_text == "$120,000 - $160,000 year"
+    assert job.remote_status == RemoteStatus.HYBRID
+    assert job.description_text == "Own revenue operations reporting."
+    assert job.apply_url.endswith("/application")
+    assert job.content_hash
 
 
-def test_parse_ashby_remote_job():
-    """Should detect remote status."""
-    source_config = SourceConfig(type="ashby", board_name="example")
-    collector = AshbyCollector("example-company", source_config)
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("FullTime", EmploymentType.FULL_TIME),
+        ("PartTime", EmploymentType.PART_TIME),
+        ("Contract", EmploymentType.CONTRACT),
+        ("Temporary", EmploymentType.TEMPORARY),
+        ("Intern", EmploymentType.APPRENTICESHIP),
+        ("", EmploymentType.UNKNOWN),
+    ],
+)
+def test_camelcase_employment_types(value, expected):
+    assert make_collector()._parse_job(
+        real_posting(employmentType=value)
+    ).employment_type == expected
 
-    job_data = {
-        "id": "uv456",
-        "title": "Remote Engineer",
-        "url": "https://jobs.ashby.co/example/remote-engineer",
-        "applyUrl": "https://jobs.ashby.co/example/remote-engineer/apply",
-        "createdAt": "2026-07-25T14:00:00Z",
-        "location": {"city": "Remote", "country": "USA"},
-        "isRemote": True,
-        "isHybrid": False,
-        "workplaceType": "Remote",
-        "compensation": {
-            "min": 100000,
-            "max": 130000,
-            "currency": "USD",
-            "period": "year",
-        },
-    }
 
-    job = collector._parse_job(job_data)
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("Remote", RemoteStatus.REMOTE),
+        ("Hybrid", RemoteStatus.HYBRID),
+        ("OnSite", RemoteStatus.ON_SITE),
+        ("", RemoteStatus.UNKNOWN),
+    ],
+)
+def test_camelcase_workplace_types(value, expected):
+    assert make_collector()._parse_job(
+        real_posting(workplaceType=value)
+    ).remote_status == expected
+
+
+def test_is_remote_flag_is_used_when_workplace_type_absent():
+    job = make_collector()._parse_job(real_posting(workplaceType="", isRemote=True))
 
     assert job.remote_status == RemoteStatus.REMOTE
-    assert job.location == "Remote"
 
 
-def test_parse_ashby_employment_types():
-    """Should parse different employment types."""
-    source_config = SourceConfig(type="ashby", board_name="example")
-    collector = AshbyCollector("example-company", source_config)
+def test_secondary_locations_are_appended():
+    job = make_collector()._parse_job(
+        real_posting(secondaryLocations=[{"location": "Dallas, Texas"}])
+    )
 
-    base_data = {
-        "id": "1",
-        "title": "Position",
-        "url": "https://example.com/1",
-        "applyUrl": "https://example.com/1",
-        "createdAt": "2026-07-20T00:00:00Z",
-    }
-
-    # Full-time
-    data = {**base_data, "employmentType": "Full-time"}
-    job = collector._parse_job(data)
-    assert job.employment_type == EmploymentType.FULL_TIME
-
-    # Part-time
-    data = {**base_data, "employmentType": "Part-time"}
-    job = collector._parse_job(data)
-    assert job.employment_type == EmploymentType.PART_TIME
-
-    # Contract
-    data = {**base_data, "employmentType": "Contract"}
-    job = collector._parse_job(data)
-    assert job.employment_type == EmploymentType.CONTRACT
-
-    # Temporary
-    data = {**base_data, "employmentType": "Temporary"}
-    job = collector._parse_job(data)
-    assert job.employment_type == EmploymentType.TEMPORARY
+    assert "Austin, Texas" in job.location
+    assert "Dallas, Texas" in job.location
 
 
-def test_parse_ashby_location_formats():
-    """Should handle different location formats."""
-    source_config = SourceConfig(type="ashby", board_name="example")
-    collector = AshbyCollector("example-company", source_config)
-
-    base_data = {
-        "id": "1",
-        "title": "Position",
-        "url": "https://example.com/1",
-        "applyUrl": "https://example.com/1",
-        "createdAt": "2026-07-20T00:00:00Z",
-    }
-
-    # Complete location
-    data = {
-        **base_data,
-        "location": {
-            "city": "San Francisco",
-            "state": "CA",
-            "country": "USA",
-        },
-    }
-    job = collector._parse_job(data)
-    # The US country suffix is dropped as noise; see test_parse_ashby_job.
-    assert job.location == "San Francisco, CA"
-
-    # Non-US country is kept
-    data = {
-        **base_data,
-        "location": {
-            "city": "Berlin",
-            "country": "Germany",
-        },
-    }
-    job = collector._parse_job(data)
-    assert job.location == "Berlin, Germany"
-
-    # Partial location
-    data = {
-        **base_data,
-        "location": {
-            "city": "Austin",
-            "state": "TX",
-        },
-    }
-    job = collector._parse_job(data)
-    assert job.location == "Austin, TX"
-
-
-def test_parse_ashby_salary():
-    """Should parse salary correctly."""
-    source_config = SourceConfig(type="ashby", board_name="example")
-    collector = AshbyCollector("example-company", source_config)
-
-    job_data = {
-        "id": "1",
-        "title": "Engineer",
-        "url": "https://example.com/1",
-        "applyUrl": "https://example.com/1",
-        "createdAt": "2026-07-20T00:00:00Z",
-        "compensation": {
-            "min": 100000,
-            "max": 150000,
-            "currency": "EUR",
-            "period": "year",
-        },
-    }
-
-    job = collector._parse_job(job_data)
-
-    assert job.salary_min == 100000
-    assert job.salary_max == 150000
-    assert job.salary_currency == "EUR"
-    assert "$100,000 - $150,000" in job.salary_text
-
-
-def test_parse_ashby_minimal_data():
-    """Should handle minimal job data."""
-    source_config = SourceConfig(type="ashby", board_name="example")
-    collector = AshbyCollector("example-company", source_config)
-
-    job_data = {
-        "id": "xyz789",
-        "title": "Position",
-        "url": "https://example.com/position",
-        "applyUrl": "https://example.com/position/apply",
-        "createdAt": "2026-07-20T00:00:00Z",
-    }
-
-    job = collector._parse_job(job_data)
-
-    assert job.source_job_id == "xyz789"
-    assert job.title == "Position"
-    assert job.location == "Remote"
-    assert job.remote_status == RemoteStatus.UNKNOWN
-
-
-def test_parse_ashby_date_parsing():
-    """Should parse ISO 8601 dates."""
-    source_config = SourceConfig(type="ashby", board_name="example")
-    collector = AshbyCollector("example-company", source_config)
-
-    job_data = {
-        "id": "1",
-        "title": "Engineer",
-        "url": "https://example.com/1",
-        "applyUrl": "https://example.com/1",
-        "createdAt": "2026-07-20T10:30:00Z",
-    }
-
-    job = collector._parse_job(job_data)
+def test_published_at_is_parsed():
+    job = make_collector()._parse_job(real_posting())
 
     assert job.date_posted is not None
-    assert job.date_posted.year == 2026
-    assert job.date_posted.month == 7
-    assert job.date_posted.day == 20
-    assert job.date_posted.hour == 10
+    assert (job.date_posted.year, job.date_posted.month, job.date_posted.day) == (2026, 7, 28)
+
+
+def test_missing_location_falls_back_to_remote():
+    assert make_collector()._parse_job(
+        real_posting(location="", secondaryLocations=[])
+    ).location == "Remote"
+
+
+def test_compensation_summary_is_used_when_present():
+    job = make_collector()._parse_job(
+        real_posting(compensation={"compensationTierSummary": "$120K – $150K"})
+    )
+
+    assert job.salary_text == "$120K – $150K"
+
+
+def test_empty_compensation_object_yields_no_salary():
+    """The API usually returns an object whose tiers are all empty."""
+    job = make_collector()._parse_job(
+        real_posting(compensation={"compensationTierSummary": None, "compensationTiers": []})
+    )
+
+    assert job.salary_text == ""
+
+
+@pytest.mark.asyncio
+async def test_fetch_uses_a_single_get_and_skips_unlisted():
+    postings = {
+        "apiVersion": "1",
+        "jobs": [
+            real_posting(id="a"),
+            real_posting(id="b", isListed=False),
+            real_posting(id="c"),
+        ],
+    }
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["method"] = request.method
+        seen["url"] = str(request.url)
+        return httpx.Response(200, json=postings)
+
+    collector = make_collector()
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        jobs = await collector._fetch_jobs(client)
+
+    assert seen["method"] == "GET"
+    assert "api.ashbyhq.com/posting-api/job-board/zello" in seen["url"]
+    assert [j.source_job_id for j in jobs] == ["a", "c"]
+
+
+@pytest.mark.asyncio
+async def test_empty_board_returns_no_jobs():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"apiVersion": "1", "jobs": []})
+
+    collector = make_collector()
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        assert await collector._fetch_jobs(client) == []

@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class AshbyCollector(JobCollector):
     """Collects from Ashby public job boards."""
 
-    BASE_URL = "https://api.ashby.io/public"
+    BASE_URL = "https://api.ashbyhq.com/posting-api"
 
     async def collect(self) -> CollectionResult:
         """Collect jobs from Ashby board."""
@@ -86,36 +86,27 @@ class AshbyCollector(JobCollector):
             )
 
     async def _fetch_jobs(self, client: httpx.AsyncClient) -> list[NormalizedJob]:
-        """Fetch all jobs from Ashby API."""
+        """Fetch the whole job board from Ashby's public posting API.
+
+        A single GET returns every listed posting; there is no cursor. The
+        previous implementation POSTed to api.ashby.io, a host that does not
+        resolve, so it failed against every board.
+        """
+        url = f"{self.BASE_URL}/job-board/{self.source_config.board_name}"
+
+        response = await client.get(url, params={"includeCompensation": "true"})
+        response.raise_for_status()
+        data = response.json() or {}
+
         jobs = []
-        cursor = None
-
-        while True:
-            payload = {"organizationName": self.source_config.board_name}
-            if cursor:
-                payload["cursor"] = cursor
-
-            response = await client.post(
-                f"{self.BASE_URL}/openings",
-                json=payload,
-            )
-            response.raise_for_status()
-            data = response.json()
-
-            if not data.get("results"):
-                break
-
-            for job_data in data["results"]:
-                try:
-                    job = self._parse_job(job_data)
-                    jobs.append(job)
-                except Exception as e:
-                    logger.warning(f"Failed to parse job {job_data.get('id')}: {e}")
-
-            # Check for more pages
-            cursor = data.get("nextCursor")
-            if not cursor:
-                break
+        for job_data in data.get("jobs") or []:
+            # Unlisted postings are drafts or internal-only.
+            if job_data.get("isListed") is False:
+                continue
+            try:
+                jobs.append(self._parse_job(job_data))
+            except Exception as e:
+                logger.warning(f"Failed to parse job {job_data.get('id')}: {e}")
 
         return jobs
 
@@ -125,72 +116,68 @@ class AshbyCollector(JobCollector):
         title = job_data.get("title", "")
         company_name = self.company_id
 
-        # Extract location
-        location = "Remote"
-        if job_data.get("location"):
-            location_data = job_data["location"]
-            if isinstance(location_data, dict):
-                parts = []
-                if location_data.get("city"):
-                    parts.append(location_data["city"])
-                if location_data.get("state"):
-                    parts.append(location_data["state"])
-                # Domestic postings are the norm; "Austin, TX, USA" is noise.
-                # Keep the country only when it is not the US.
-                country = location_data.get("country") or ""
-                if country and country.upper() not in {"US", "USA", "UNITED STATES"}:
-                    parts.append(country)
-                if parts:
-                    location = ", ".join(parts)
-            else:
-                location = str(location_data)
+        # location is a plain string ("Austin, Texas"), not a city/state/country
+        # dict. department and team are strings too.
+        location = job_data.get("location") or ""
+        secondary = [
+            s.get("location") if isinstance(s, dict) else str(s)
+            for s in job_data.get("secondaryLocations") or []
+        ]
+        secondary = [s for s in secondary if s]
+        if secondary:
+            location = ", ".join([location, *secondary]) if location else ", ".join(secondary)
+        location = location or "Remote"
 
-        # Extract description
-        description = ""
-        if job_data.get("descriptionPlain"):
-            description = clean_html(job_data["descriptionPlain"])
-        elif job_data.get("description"):
-            description = clean_html(job_data["description"])
+        description = job_data.get("descriptionPlain") or ""
+        if not description and job_data.get("descriptionHtml"):
+            description = clean_html(job_data["descriptionHtml"])
 
-        # Extract department and team
-        department = job_data.get("department", {}).get("name", "") if job_data.get("department") else ""
-        team = job_data.get("team", {}).get("name", "") if job_data.get("team") else ""
+        department = job_data.get("department") or ""
+        team = job_data.get("team") or ""
 
-        # Employment type
-        employment_type = EmploymentType.FULL_TIME
-        if job_data.get("employmentType"):
-            emp_type = job_data["employmentType"].lower()
-            if "part" in emp_type:
-                employment_type = EmploymentType.PART_TIME
-            elif "contract" in emp_type:
-                employment_type = EmploymentType.CONTRACT
-            elif "temporary" in emp_type:
-                employment_type = EmploymentType.TEMPORARY
+        # employmentType is CamelCase: FullTime, PartTime, Intern, Contract,
+        # Temporary.
+        employment_type = EmploymentType.UNKNOWN
+        emp_type = (job_data.get("employmentType") or "").lower()
+        if "fulltime" in emp_type or "full time" in emp_type:
+            employment_type = EmploymentType.FULL_TIME
+        elif "parttime" in emp_type or "part time" in emp_type:
+            employment_type = EmploymentType.PART_TIME
+        elif "contract" in emp_type:
+            employment_type = EmploymentType.CONTRACT
+        elif "temporary" in emp_type:
+            employment_type = EmploymentType.TEMPORARY
+        elif "intern" in emp_type or "apprentice" in emp_type:
+            employment_type = EmploymentType.APPRENTICESHIP
 
-        # Remote status
+        # workplaceType is CamelCase: Remote, Hybrid, OnSite.
+        workplace_type = job_data.get("workplaceType") or ""
+        workplace = workplace_type.lower()
         remote_status = RemoteStatus.UNKNOWN
-        if job_data.get("isRemote") is True:
-            remote_status = RemoteStatus.REMOTE
-        elif job_data.get("isHybrid") is True:
+        if "hybrid" in workplace:
             remote_status = RemoteStatus.HYBRID
-        elif job_data.get("isRemote") is False:
+        elif "remote" in workplace:
+            remote_status = RemoteStatus.REMOTE
+        elif "onsite" in workplace or "on site" in workplace:
             remote_status = RemoteStatus.ON_SITE
+        elif job_data.get("isRemote") is True:
+            remote_status = RemoteStatus.REMOTE
 
-        # Workplace type
-        workplace_type = job_data.get("workplaceType", "")
-
-        # Dates
+        # publishedAt is ISO 8601; there is no createdAt on this endpoint.
         date_posted = None
-        if job_data.get("createdAt"):
+        for field in ("publishedAt", "createdAt", "updatedAt"):
+            value = job_data.get(field)
+            if not value:
+                continue
             try:
                 date_posted = datetime.fromisoformat(
-                    job_data["createdAt"].replace("Z", "+00:00")
-                )
+                    str(value).replace("Z", "+00:00")
+                ).replace(tzinfo=None)
+                break
             except (ValueError, AttributeError):
-                pass
+                continue
 
-        # Apply URL
-        apply_url = job_data.get("applyUrl", job_data.get("url", ""))
+        apply_url = job_data.get("applyUrl") or job_data.get("jobUrl") or ""
 
         # Salary info
         salary_text = ""
@@ -199,14 +186,20 @@ class AshbyCollector(JobCollector):
         salary_currency = "USD"
         salary_period = "year"
 
-        if job_data.get("compensation"):
-            comp = job_data["compensation"]
-            if comp.get("min") and comp.get("max"):
-                salary_min = comp["min"]
-                salary_max = comp["max"]
-                salary_currency = comp.get("currency", "USD")
-                salary_period = comp.get("period", "year")
-                salary_text = f"${salary_min:,} - ${salary_max:,} {salary_period}"
+        comp = job_data.get("compensation") or {}
+        # The posting API returns a pre-rendered summary when the employer
+        # publishes pay; the structured tiers are frequently empty.
+        summary = comp.get("compensationTierSummary") or comp.get(
+            "scrapeableCompensationSalarySummary"
+        )
+        if summary:
+            salary_text = str(summary)
+        elif comp.get("min") and comp.get("max"):
+            salary_min = comp["min"]
+            salary_max = comp["max"]
+            salary_currency = comp.get("currency", "USD")
+            salary_period = comp.get("period", "year")
+            salary_text = f"${salary_min:,} - ${salary_max:,} {salary_period}"
 
         # Calculate hash
         content_hash = calculate_content_hash(company_name, title, location, description, apply_url)
@@ -219,7 +212,7 @@ class AshbyCollector(JobCollector):
             title=title,
             location=location,
             apply_url=apply_url,
-            source_url=job_data.get("url", apply_url),
+            source_url=job_data.get("jobUrl") or apply_url,
             date_posted=date_posted,
             description_text=description,
             employment_type=employment_type,
