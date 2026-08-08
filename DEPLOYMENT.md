@@ -3,9 +3,10 @@
 > **⚠️ Phase 3 (source discovery) is superseded — see [STATUS.md](STATUS.md).**
 >
 > Auto-discovery does not work, and no target employer publishes JSON-LD. Sources
-> are now configured against the Workday CXS API; 13 employers are already
-> enabled and verified. Phases 1–2 (GitHub setup, secrets) and 5–9 (testing,
-> deploy, scheduling) still apply.
+> are now configured against the Workday CXS API and the Greenhouse boards API;
+> 16 sources are enabled and verified, and the daily workflow has been running
+> since 2026-08-03. Phases 1–2 (GitHub setup, secrets) and 5–9 (testing, deploy,
+> scheduling) still apply.
 
 Complete these steps to deploy the job collector to GitHub and begin daily automation.
 

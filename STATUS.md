@@ -1,6 +1,6 @@
 # Project Status and Handoff
 
-**Last updated:** 2026-08-02
+**Last updated:** 2026-08-08
 
 This document supersedes the source-discovery guidance in `DEPLOYMENT.md`,
 `AUTO_DISCOVERY.md`, and `SOURCE_VALIDATION_GUIDE.md`. Read this first.
@@ -9,242 +9,285 @@ This document supersedes the source-discovery guidance in `DEPLOYMENT.md`,
 
 ## TL;DR
 
-The original scraping strategy did not work and has been replaced. Greenhouse,
-Lever, Ashby, and JSON-LD collectors match **zero** of the target employers. A
-live census of all 66 employers found the real distribution is Workday-dominated.
+A daily GitHub Action collects jobs from **16 sources** (14 Workday, 2
+Greenhouse), filters them to the Austin metro plus Dallas and Starbase, and
+emails a **machine-readable feed** to a downstream consumer (ChatGPT) that does
+the categorisation and shortlisting.
 
-A **Workday collector** now exists and works: **3,214 jobs from 13 employers**,
-verified idempotent across consecutive runs. Four pre-existing bugs that would
-each have broken the product independently are fixed.
+Current state: **1,697 jobs, 16/16 sources succeeding, 171 tests passing.**
+Runs unattended at 07:00 UTC daily.
 
----
-
-## Why the original strategy failed
-
-Two findings from probing every employer live:
-
-1. **0 of 66 employers expose `JobPosting` JSON-LD.** The JSON-LD collector was
-   the fallback that everything degraded into. It collects nothing, anywhere.
-   These careers pages are JavaScript applications that fetch listings from a
-   JSON API after load — the served HTML contains no jobs. This is not a
-   blocking or User-Agent problem; the pages return HTTP 200 with full HTML.
-
-2. **0 of 66 employers use Greenhouse, Lever, or Ashby.** Those are startup and
-   mid-market systems; these are enterprise employers. The only Greenhouse/Lever/
-   Ashby entries in `companies.yaml` are the `example-*` templates.
-
-Auto-discovery masked this. `source_discovery.py` returns `jsonld` at confidence
-0.3 for *any* page returning HTTP 200, so every employer was recorded as
-"detected, not accessible" rather than "never detected". `_detect_workday()` also
-correctly identifies Workday and then returns `source_type="jsonld"`, discarding
-the answer at the moment it finds it. **Do not trust `companies_discovered.yaml`.**
+The division of labour matters: **this system is ETL, not judgment.** It
+collects, normalises and delivers. Relevance scoring, seniority judgment and
+shortlisting happen downstream. Do not add keyword categorisation that can
+*exclude* jobs — over-filtering here silently destroys information the consumer
+needs.
 
 ---
 
-## ATS census — all 66 employers (probed live 2026-08-02)
+## Design invariants
 
-| ATS | Count | Notes |
+These are load-bearing. Each was learned from a production failure; violating
+one reintroduces a bug that is hard to spot because it fails silently.
+
+### 1. Identity and location come from the search summary, never the detail fetch
+
+`WorkdayCollector._parse_job` derives `source_job_id` and `location` from the
+search summary only. Detail fetches are capped and can fail, so keying off
+`detail["jobReqId"]` gave the same posting a different id depending on whether
+its detail happened to be fetched. The old id then looked expired and the new
+one looked new — 95 UT Austin jobs churned this way every run.
+
+Location follows the same rule because it decides whether the location filter
+keeps a posting: if it depended on an optional fetch, jobs would flicker in and
+out of the report. `_summary_location()` is used both to pre-filter and to
+populate the job, so the two cannot diverge.
+
+### 2. Location filtering happens before detail fetching
+
+Collectors receive a `location_filter` predicate from the orchestrator and apply
+it to summaries *first*, so the one-request-per-job detail budget is spent only
+on jobs we keep. Previously the cap was exhausted on postings about to be
+discarded, which left 13% of kept jobs with no description — Flex lost
+descriptions on 106 of 106.
+
+### 3. The email body is the product; the attachment is not
+
+The downstream consumer reads the body. Attachments arrive as
+`application/octet-stream` and cannot be opened. Everything the consumer needs
+must be in the body, in parseable form.
+
+### 4. Never truncate silently
+
+Gmail clips bodies near 102 KB, dropping records with no indication. The body is
+capped by a **byte budget** (`MAX_BODY_BYTES = 90_000`), not a record count, and
+always reports `records_included` and `records_omitted` with the reason. The same
+rule applies to `max_jobs`, `max_detail_fetches` and search caps: log what was
+dropped.
+
+### 5. The city list is the geographic definition
+
+`location_filter.include` in `config/companies.yaml` enumerates places. There is
+deliberately **no blanket `Texas` or `, TX` entry** — those matched the whole
+state and admitted Starbase (~350 miles away), McGregor and Dallas before anyone
+asked for them. Widening the radius means adding a city.
+
+Matching uses word boundaries: plain substring matching made `Buda` (a Texas
+suburb) match `Budapest`. `exclude` is checked first and wins, because a bare
+`Remote` pattern otherwise kept `Remote (Germany)` and ~170 other international
+postings.
+
+### 6. Use `database.connect()` for SQLite
+
+`with sqlite3.connect(...)` manages the transaction but **does not close the
+connection**. All 13 original call sites leaked a handle (~3,200 per run) and
+held Windows file locks. `database.connect()` commits and closes.
+
+---
+
+## Architecture
+
+```
+config/companies.yaml   sources + location filter
+        |
+        v
+JobCollectionOrchestrator (collection.py)
+  - builds collectors from COLLECTOR_MAP
+  - injects the location predicate
+  - runs all sources concurrently
+        |
+        v
+Collectors (collectors/*.py)   Workday | Greenhouse | Lever | Ashby | JSON-LD
+  - fetch, pre-filter by location, fetch details, normalise
+        |
+        v
+Location filter (config.LocationFilter)   belt-and-braces second pass
+        |
+        v
+StateManager (state.py)   new / changed / unchanged / expired
+        |
+        v
+JobDatabase (database.py)   SQLite, persisted to the job-search-state branch
+        |
+        v
+ReportGenerator (reporting.py)   JSON + Markdown
+EmailDelivery (email_delivery.py)   machine-readable record feed
+```
+
+Status detection runs **before** persistence. Saving first would make every job
+look like it already existed, so every run would report "0 new jobs".
+
+---
+
+## The email contract
+
+Consumed by an automated reader. Header, then one delimited record per job:
+
+```
+=== JOB COLLECTOR REPORT ===
+generated_at: 2026-08-08T09:43:00Z
+total_active: 1697
+new: 17
+changed: 2
+expired: 9
+failed_sources: 0
+records_included: 19
+records_omitted: 0
+
+JOB
+id: q2-holdings#workday|REQ-12676
+company: Q2 Holdings
+title: Software Engineer in Test
+location: Austin, TX
+employment_type: full_time
+remote: unknown
+status: new
+posted_date: 2026-07-28
+first_seen: 2026-08-07
+source: q2-holdings#workday
+salary:
+apply_url: https://...
+description:
+<multi-line text, last field so it may span lines>
+END JOB
+=== END REPORT ===
+```
+
+Rules the format depends on:
+
+- Scalars are flattened to one line — a newline in a title would corrupt the
+  next field.
+- `description` is last and may span lines; a description containing `END JOB`
+  is rewritten so it cannot break out of its record.
+- Absent values emit empty keys rather than disappearing, so record shape is
+  constant.
+- Only `new` and `changed` jobs are sent. Unchanged postings are already known
+  downstream and would swamp the body.
+
+`total_active`, `new`, `changed` and `expired` are distinct and must stay so —
+they were previously conflated, and the summary counts were hardcoded to zero.
+
+---
+
+## Sources: 16 working
+
+| Employer | ATS | Notes |
 |---|---|---|
-| **Workday** | 21 | Verified working; collector built |
-| custom / bot-protected | 21 | Apple, Amazon, Google, Meta, IBM, Tesla, Samsung, SpaceX, Atlassian, Procore, Infineon + trades/gov |
-| Phenom | 4 | Cisco, BAE Systems, Ascension Seton, Baylor Scott & White |
-| iCIMS | 4 | AMD, Arm, TDIndustries, Bergelectric |
-| Oracle Cloud | 2 | Oracle, ICU Medical |
-| Taleo | 2 | State of Texas, Helix Electric |
-| Greenhouse | 2 | Natera, Firefly Aerospace |
-| NeoGov / GovernmentJobs | 2 | Travis County, City of Round Rock |
-| Eightfold | 1 | Applied Materials |
-| UltiPro | 1 | Austin Regional Clinic |
-| dead DNS / bad URL | 6 | Needs URL correction |
+| Q2 Holdings, SailPoint, Silicon Labs, NXP, Intel, Adobe, Thermo Fisher | Workday | Large tenants use `search_terms` to narrow server-side |
+| Flex | Workday | Tenant is **`flextronics`**, not `flex` |
+| City of Austin | Workday | Tenant also serves **Austin Energy** |
+| UT Austin, Austin Community College | Workday | UT names buildings, not cities — see filter notes |
+| ERCOT, Capital Metro, Clinical Pathology Labs | Workday | |
+| Natera | Greenhouse | board_token `natera` |
+| SpaceX | Greenhouse | board_token `spacex`; mostly the Bastrop Starlink factory |
 
-Dell, Tesla, and Applied Materials return **HTTP 403 even with a browser
-User-Agent** — real bot protection. They need their internal JSON API or a
-headless browser, not a better scraper.
-
----
-
-## What was built
-
-### `src/job_collector/collectors/workday.py`
-
-One collector serves every Workday employer — the endpoint shape is identical
-across tenants:
-
-```
-POST https://{tenant}.{wd_host}.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs
-     {"appliedFacets":{},"limit":20,"offset":0,"searchText":""}
-
-GET  https://{tenant}.{wd_host}.myworkdayjobs.com/wday/cxs/{tenant}/{site}{externalPath}
-```
-
-Config accepts explicit `tenant` / `wd_host` / `site`, or derives all three from
-a `site_url`. Options under `parsing_config`:
+### Workday collector options (`parsing_config`)
 
 | Option | Default | Purpose |
 |---|---|---|
 | `search_terms` | `[""]` | Narrow large tenants server-side; results merged and de-duplicated |
-| `max_jobs` | 1000 | Cap on postings pulled per search term |
+| `max_jobs` | 1000 | Cap per search term |
 | `fetch_descriptions` | `true` | Detail endpoint supplies description + absolute post date |
-| `max_detail_fetches` | 300 | Cap on the one-request-per-job detail pass |
-| `detail_concurrency` | 5 | Parallel detail requests |
+| `max_detail_fetches` | 1500 | Runaway guard, not a budget — filtering happens first |
+| `detail_concurrency` | 3 | Kept low; 16 sources run at once and Workday throttles the aggregate |
 | `store_raw` | `false` | Retain raw API payloads |
 
-Page size is fixed at 20 — Workday rejects larger values on the public endpoint.
+Page size is fixed at 20 — Workday rejects larger values. Transient 429/5xx are
+retried with exponential backoff, jitter and `Retry-After` support.
 
-### Coverage
-
-13 employers enabled, **3,214 jobs**, 13/13 sources succeeding in ~102s:
-
-| Employer | Jobs | Employer | Jobs |
-|---|---|---|---|
-| Thermo Fisher | 714 | Austin Community College | 79 |
-| Adobe | 631 | ERCOT | 67 |
-| Intel | 603 | Q2 Holdings | 49 |
-| NXP | 519 | Silicon Labs | 43 |
-| UT Austin | 238 | Capital Metro | 37 |
-| City of Austin | 123 | Clinical Pathology Labs | 9 |
-| SailPoint | 102 | | |
-
-Large tech tenants use `search_terms` to filter to software/QA roles server-side.
-Small and municipal tenants pull everything and let `search_rules.yaml` filter
-downstream — that is where the electrician and construction-helper roles live.
+**Greenhouse ignores `page`/`per_page`** and returns the whole board in one
+response. A loop that stopped only on a short page never terminated. Fetch once.
 
 ---
 
-## Bugs fixed
+## Coverage: 16 of 66 targets
 
-Four were pre-existing and each would have broken the product on its own:
+| Status | Count |
+|---|---:|
+| Working in production | **16** |
+| Reachable, not adopted | 2 — Oracle (only 7 Austin jobs), ICU Medical (0) |
+| Verified unreachable | 12 |
+| Workday, unresolved tenant names | 6 |
+| Custom / client-rendered / bot-protected | ~24 |
+| Dead URL / DNS | 6 |
 
-| File | Bug | Consequence |
+### Reachability findings — verified, do not re-litigate
+
+| ATS | Employers | Verdict |
 |---|---|---|
-| `collection.py` | Jobs were saved **before** status detection ran | Detection always found them already present — every run would report "0 new jobs" forever |
-| `state.py` | `SELECT` referenced a nonexistent `content_hash` column | Collection crashed outright; also the cause of 20 failing tests |
-| `cli.py` | Module-level `logger` was never defined | `NameError` masked the real error in all four command handlers |
-| `cli.py` / `reporting.py` / `database.py` | `report` was never implemented (`# TODO: Query jobs from database`) | Always wrote an empty report |
+| iCIMS | AMD, Arm, TDIndustries, Bergelectric | **AWS WAF captcha** (`x-amzn-waf-action: captcha`). Not circumventable. |
+| Eightfold | Applied Materials | AWS WAF captcha |
+| Phenom | Cisco, BAE, Ascension, Baylor Scott & White | Client-rendered, no reachable JSON endpoint |
+| NeoGov | Travis County, Round Rock | Client-rendered. "0 jobs found" is a pre-JS placeholder — LA City shows it too despite hundreds of openings |
+| Taleo | State of Texas | Portal id `101430233` resolves, REST search returns 500 |
+| Oracle Cloud | Oracle, ICU Medical | **Works.** `GET /hcmRestApi/resources/latest/recruitingCEJobRequisitions?onlyData=true&expand=requisitionList.secondaryLocations&finder=findReqs;siteNumber={site},limit=25,offset=0` — limit/offset live inside the finder. Host and `CX_*` site are discoverable from the careers page. Not adopted: too few Austin jobs. |
 
-The reporting fix required adding `database.get_recent_jobs()`, persisting
-`description_text` / `date_posted` / `salary_text` in `save_job` (the reports
-render them but nothing stored them), correcting a path double-join
-(`output/output/…`), and archiving by copy instead of move so the `latest_*`
-files survive.
+**Dell**: tenant is not `dell` — 30 tenant/site combinations returned nothing.
+The other six unresolved Workday tenants look like wrong *names*, not wrong
+sites; twelve common site slugs failed against each.
 
-Two more were in the new collector, caught by running twice:
-
-- Intel returns the literal string `"Spotlight Job"` in `bulletFields` instead of
-  a requisition ID, collapsing 16 distinct postings onto one row. IDs now come
-  from `jobReqId` or the `externalPath`, never `bulletFields`.
-- The `max_detail_fetches` cap selected its subset by API result ordering, so a
-  job's content hash flipped depending on whether its description was fetched
-  that run. Sorting before truncating made it deterministic.
-
----
-
-## Verification
-
-```
-Run 1 (fresh DB):  3214 new, 0 changed, 0 expired   13 sources OK, 0 failed
-Run 2 (same day):     0 new, 0 changed, 0 expired   13 sources OK, 0 failed
-```
-
-Idempotent — no false "changed" churn, so the daily email will not cry wolf.
-Reports render at 5.9 MB JSON / 150 KB Markdown with real descriptions and
-apply links.
-
-**Test suite: 112 passed, 0 failed, 0 errors** — from a baseline of 63 passed,
-20 failed, 16 errors. 29 of the new tests are in `test_workday.py`.
-
-Fixing the suite surfaced more real bugs than test defects:
-
-- `deduplication.py` was entirely non-functional — it referenced a
-  `job.source_id` the model never defined, so every call raised.
-- The Markdown report **silently dropped new jobs**. An operator-precedence bug
-  (`A and B and C or D or E` parses as `(A and B and C) or D or E`) meant any
-  new job matching neither a category nor a location marker vanished. This is
-  why the first live run showed only 210 of 3,215 jobs. Now every new job lands
-  in exactly one bucket, with an "Other New Jobs" catch-all.
-- `lever.py` parsed epoch timestamps in local time, so a UTC CI runner produced
-  different dates than a local machine from identical input.
-- `with sqlite3.connect(...)` manages the transaction but **does not close the
-  connection**. All 13 call sites leaked a handle (~3,200 per collection run)
-  and held Windows file locks — the cause of all 16 test errors. There is now a
-  `database.connect()` helper that commits and closes; use it for any new
-  SQLite access.
-
-Two genuine test defects: a Lever timestamp whose comment claimed 2026 but whose
-value was 2024, and two ashby tests that contradicted each other on identical
-input (so the suite could never have gone fully green).
-
----
-
-## Next steps, highest value first
-
-1. **iCIMS + Taleo collectors** — AMD, Arm, TDIndustries, Bergelectric, Helix
-   Electric, State of Texas. This is the main **trades** coverage; the trades
-   employers are the worst-covered category and where electrician's-helper and
-   construction-helper roles concentrate.
-2. **Populate job categories via `search_rules.yaml`** — `NormalizedJob.category`
-   is never set by any classifier, so nothing reaches the "Software & QA" or
-   "Trades & Immediate Income" report sections; everything falls through to
-   location matching or the "Other New Jobs" catch-all. Wiring up classification
-   is what makes the daily email actually readable, and what surfaces
-   helper/apprentice/electrician roles as their own section.
-3. **NeoGov / GovernmentJobs collector** — Travis County, City of Round Rock, and
-   probably the other municipalities once their URLs are fixed. Strong source of
-   helper-grade public-works roles.
-4. **Resolve 7 Workday tenants returning HTTP 422** — wrong site IDs, not dead
-   tenants: Cirrus Logic, Dover Fueling, Emerson/NI, Flex, HID/ASSA ABLOY, LCRA,
-   Texas State. Find the correct site path in each public careers URL.
-5. **Phenom / Oracle Cloud / Greenhouse** — 8 more employers; Greenhouse already
-   has a working collector.
-
-**Recommendation: do not scrape the 21 custom/bot-protected sites.** Each needs a
-bespoke adapter, several sit behind Akamai returning 403, and they break
-continuously. Revisit only once the core system runs daily.
+The 2026-08-02 census identified which ATS each employer used but **not whether
+its data was retrievable** — that gap produced two wrong recommendations. It
+also miscategorised SpaceX as a custom site when it is on Greenhouse, so the
+"21 custom" figure was overstated. Verify reachability before planning work.
 
 ---
 
 ## Known issues and data notes
 
-- **Dell** is left disabled — its Workday tenant responds but returns 0 jobs, so
-  the site ID is wrong.
-- **Thermo Fisher appears twice** in the employer list (semiconductor and
-  healthcare).
-- **Austin Energy is not a separate employer** — it resolves to the City of
-  Austin's Workday tenant (`austintexas.wd5/COA_Careers`).
-- **IBEW Local 520, Austin Electrical Training Alliance, and IEC Central Texas
-  are not job boards.** They are union referral halls and apprenticeship
-  programs publishing application *windows*, not postings. No scraper will
-  produce listings from them; they need page-change detection, a different
+- **Firefly Aerospace** is on Greenhouse but its board token is not discoverable
+  from its careers page; four guesses returned 404.
+- **Austin Regional Clinic** (UltiPro) and **Helix Electric** (Taleo) expose no
+  board on their landing pages.
+- **Thermo Fisher appears twice** in the employer list.
+- **IBEW Local 520, Austin Electrical Training Alliance, IEC Central Texas** are
+  not job boards — they are union referral halls and apprenticeship programmes
+  publishing application *windows*. They need page-change detection, a different
   feature.
 - `config/companies_discovered.yaml` is misleading output from the old
   auto-discovery run. Do not use it.
+- Running several collections back-to-back exhausts the retry budget and can
+  fail every source at once. A once-daily run does not provoke this.
 
 ---
 
 ## Daily automation
 
 `.github/workflows/collect-jobs.yml` runs at `0 7 * * *` (07:00 UTC = 2 AM
-Central). The schedule was always present but the workflow would have failed
-every night; fixed:
+Central). Working as of 2026-08-06: restores state, collects, reports, emails.
 
-- **Every CLI call had the wrong flag order.** `--config`/`--output` are
-  top-level arguments and must precede the subcommand, so all five invocations
-  were argparse errors.
-- **The test step gated collection.** Pre-existing failures in the legacy
-  collectors would have stopped the run before it collected anything. Now
-  `continue-on-error`, informational only.
-- **`upload-artifact@v3` is retired** by GitHub and fails hard. Now v4.
-- **State persistence never worked.** The state branch was never fetched, so
-  every run started fresh; and `data/jobs.db` is gitignored, so `git add` was a
-  silent no-op. Now fetched explicitly and force-added.
+- `--config`/`--output` are **top-level** arguments and must precede the
+  subcommand; placing them after is an argparse error.
+- The test step is `continue-on-error` — a test failure must not stop collection.
+- State persists on the `job-search-state` branch. `data/jobs.db` is gitignored,
+  so it is force-added; the branch is fetched explicitly before restore.
+- Deleting that branch resets state: every job then reports as new once. Do this
+  after a change to identity or the location filter, otherwise the next email is
+  a confusing mix of phantom expiries and re-keyed duplicates.
+- Email needs `JOB_EMAIL_SMTP_USERNAME` (the Gmail account the App Password
+  belongs to), `JOB_EMAIL_SMTP_PASSWORD` and `JOB_EMAIL_FROM`. Recipient is
+  `JOB_EMAIL_TO`.
+- GitHub disables scheduled workflows after 60 days without commits.
 
-Still required before email works: **`config/email.yaml`** does not exist (only
-`email.yaml.example`), and the three `JOB_EMAIL_*` secrets must be set in the
-repo. The email step is `continue-on-error`, so collection and reports work
-without it.
+---
 
-GitHub disables scheduled workflows in repositories with no commit activity for
-60 days.
+## Next steps
+
+1. **Watch two clean nightly runs.** Dallas and Starbase were just added, so the
+   next email is a large one-off; the run after should be a normal delta.
+2. **Optional category metadata** — as *hints only*, never exclusion rules. The
+   consumer has explicitly asked not to have jobs filtered by keyword.
+3. **Widen the radius** if wanted: McGregor, Houston, San Antonio, Port Aransas
+   are one line each in `location_filter.include`.
+4. **Browser-based collector**, only if a specific employer justifies it. Viable
+   for the client-rendered sites (no bot protection to defeat), but it means a
+   Playwright dependency in a workflow that currently runs in under two minutes.
+   Worth it for a local employer with frequent entry-level openings; not worth it
+   for a global tech company whose postings mostly get filtered out.
+
+**Do not** attempt the WAF-protected sites. That means defeating a CAPTCHA.
+
+---
 
 ## Running it
 
@@ -255,12 +298,19 @@ python -m job_collector --config config validate-config
 python -m job_collector --config config init-db
 python -m job_collector --config config collect
 python -m job_collector --config config report
+python -m job_collector --config config send-email
 
 pytest -q
 ```
 
-Note the flag order: `--config` is a top-level argument and must precede the
-subcommand.
+Use `--database <path>` to work against a scratch database instead of
+`data/jobs.db`.
 
 Output lands in `output/latest_jobs.json`, `output/latest_report.md`, and dated
-copies under `output/archive/`. Database is `data/jobs.db` (gitignored).
+copies under `output/archive/`. The database is `data/jobs.db` (gitignored).
+
+### Verifying a change
+
+Collect twice against a fresh database. The second run must report
+**0 new, 0 changed, 0 expired**. Anything else means job identity or location is
+not deterministic — see invariants 1 and 2.

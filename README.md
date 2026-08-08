@@ -4,8 +4,13 @@ An automated system for collecting, normalizing, and tracking employment opportu
 
 ## Overview
 
+> **Current state and design notes live in [STATUS.md](STATUS.md).** Read it
+> before changing collectors, the location filter, or the email format — several
+> invariants there fail silently if broken.
+
 The system:
-- Collects job postings from Greenhouse, Lever, Ashby, and JSON-LD career pages
+- Collects job postings from Workday, Greenhouse, Lever, Ashby, and JSON-LD
+  career pages (Workday and Greenhouse are the ones actually in use)
 - Normalizes all postings into a common schema
 - Detects new, changed, unchanged, and expired jobs
 - Deduplicates postings across sources
