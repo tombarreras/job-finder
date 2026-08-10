@@ -261,11 +261,13 @@ Trigger workflow manually again to test new sources.
 
 ## Phase 9: Schedule Daily Automation (Already Configured)
 
-The workflow is already scheduled to run daily at **7:00 AM UTC**:
+The workflow is already scheduled to run daily at **2 PM Austin time**
+(two cron entries, because GitHub cron ignores daylight saving):
 
 ```yaml
 schedule:
-  - cron: '0 7 * * *'  # 7 AM UTC daily
+  - cron: '0 19 * 3-10 *'      # 2 PM Austin (CDT)
+  - cron: '0 20 * 1,2,11,12 *' # 2 PM Austin (CST)
 ```
 
 This converts to:

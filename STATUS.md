@@ -1,6 +1,6 @@
 # Project Status and Handoff
 
-**Last updated:** 2026-08-08
+**Last updated:** 2026-08-09
 
 This document supersedes the source-discovery guidance in `DEPLOYMENT.md`,
 `AUTO_DISCOVERY.md`, and `SOURCE_VALIDATION_GUIDE.md`. Read this first.
@@ -9,13 +9,14 @@ This document supersedes the source-discovery guidance in `DEPLOYMENT.md`,
 
 ## TL;DR
 
-A daily GitHub Action collects jobs from **16 sources** (14 Workday, 2
-Greenhouse), filters them to the Austin metro plus Dallas and Starbase, and
+A daily GitHub Action collects jobs from **60 sources** (Workday, Greenhouse,
+Lever, Ashby), filters them to the Austin metro plus Dallas and Starbase, and
 emails a **machine-readable feed** to a downstream consumer (ChatGPT) that does
-the categorisation and shortlisting.
+the categorisation and shortlisting. It also watches a few apprenticeship pages
+that publish application windows rather than postings.
 
-Current state: **1,697 jobs, 16/16 sources succeeding, 171 tests passing.**
-Runs unattended at 07:00 UTC daily.
+Current state: **~2,250 jobs, 60/60 sources succeeding, 218 tests passing.**
+Runs unattended at 2 PM Austin time daily.
 
 The division of labour matters: **this system is ETL, not judgment.** It
 collects, normalises and delivers. Relevance scoring, seniority judgment and
@@ -167,9 +168,21 @@ Rules the format depends on:
 `total_active`, `new`, `changed` and `expired` are distinct and must stay so —
 they were previously conflated, and the summary counts were hardcoded to zero.
 
+Watched pages use the same shape (`WATCH` … `END WATCH`, with `added_text`
+last) and are emitted **before** the job records, so a time-critical
+apprenticeship window can never fall below the body-size cap. The header carries
+`watches_checked` and `watches_changed`.
+
+### Backfills
+
+`send-email --include all --max-emails N --description-chars N` splits the whole
+inventory across several messages, each packed to the byte budget and labelled
+`part: i of n`. Exposed as `workflow_dispatch` inputs, since SMTP credentials
+are repository secrets. The daily run keeps the single-email delta default.
+
 ---
 
-## Sources: 16 working
+## Sources: 60 working
 
 | Employer | ATS | Notes |
 |---|---|---|
@@ -178,8 +191,18 @@ they were previously conflated, and the summary counts were hardcoded to zero.
 | City of Austin | Workday | Tenant also serves **Austin Energy** |
 | UT Austin, Austin Community College | Workday | UT names buildings, not cities — see filter notes |
 | ERCOT, Capital Metro, Clinical Pathology Labs | Workday | |
-| Natera | Greenhouse | board_token `natera` |
-| SpaceX | Greenhouse | board_token `spacex`; mostly the Bastrop Starlink factory |
+| Natera, SpaceX + 22 more | Greenhouse | SpaceX is mostly the Bastrop Starlink factory |
+| Arrive Logistics, Everlywell, Bazaarvoice, Esper | Lever | |
+| Zello, Ontic, Literati, Miro, Demandbase, UpGuard | Ashby | |
+
+Employers on Greenhouse/Lever/Ashby are **config only** — all three collectors
+work, so adding one costs a slug. A sweep of ~380 candidate slugs found them;
+re-run `scratchpad/sweep.py`-style probing to find more.
+
+**Trades employers are the exception.** A sweep of 106 construction, electrical,
+solar and staffing slugs found only 9 boards and no Austin entry-level work:
+they use iCIMS, Taleo and Paycom, which are captcha-walled or client-rendered.
+Entry-level electrical is therefore covered by `config/watches.yaml` instead.
 
 ### Workday collector options (`parsing_config`)
 
@@ -200,7 +223,7 @@ response. A loop that stopped only on a short page never terminated. Fetch once.
 
 ---
 
-## Coverage: 16 of 66 targets
+## Coverage
 
 | Status | Count |
 |---|---:|
@@ -253,8 +276,10 @@ also miscategorised SpaceX as a custom site when it is on Greenhouse, so the
 
 ## Daily automation
 
-`.github/workflows/collect-jobs.yml` runs at `0 7 * * *` (07:00 UTC = 2 AM
-Central). Working as of 2026-08-06: restores state, collects, reports, emails.
+`.github/workflows/collect-jobs.yml` runs at **2 PM Austin time**. GitHub cron
+is always UTC and ignores daylight saving, so there are two entries:
+`0 19 * 3-10 *` (CDT) and `0 20 * 1,2,11,12 *` (CST). Only the two DST
+changeover weeks land an hour out. Working as of 2026-08-06: restores state, collects, reports, emails.
 
 - `--config`/`--output` are **top-level** arguments and must precede the
   subcommand; placing them after is an argparse error.

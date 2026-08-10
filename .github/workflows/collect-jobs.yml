@@ -2,8 +2,13 @@ name: Collect Jobs
 
 on:
   schedule:
-    # 07:00 UTC daily = 2 AM Central (CDT) / 1 AM Central (CST), Austin time.
-    - cron: '0 7 * * *'
+    # Target: 2 PM Austin time. GitHub cron is always UTC and does not follow
+    # daylight saving, so the offset is split across the year:
+    #   March-October  = CDT (UTC-5) -> 19:00 UTC
+    #   November-Feb   = CST (UTC-6) -> 20:00 UTC
+    # Only the two changeover weeks land an hour out, rather than four months.
+    - cron: '0 19 * 3-10 *'
+    - cron: '0 20 * 1,2,11,12 *'
   workflow_dispatch:
     inputs:
       email_include:
